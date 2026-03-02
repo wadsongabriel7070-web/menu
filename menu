@@ -1,0 +1,1091 @@
+-- GodMode GUI | Luau Script
+-- Dark Mode | Tabs | Bordas Arredondadas | Minimizar/Maximizar
+-- Compatível com Roblox Mobile
+-- AIMBOT V7 - Mira travada + acompanha movimento + FOV centralizado
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- =====================
+--   VARIÁVEIS GLOBAIS
+-- =====================
+local AimbotEnabled       = false
+local IsMinimized         = false
+local CurrentTab          = "MAIN"
+local ESPEnabled          = false
+local TeleportKillEnabled = false
+local AutoFarmEnabled     = false
+local AutoKillEnabled     = false
+local NotifEnabled        = false
+
+-- =====================
+--   DIMENSÕES
+-- =====================
+local GUI_W = 320
+local GUI_H = 310
+
+-- =====================
+--   CORES (Dark Mode)
+-- =====================
+local Colors = {
+	Background    = Color3.fromRGB(18, 18, 26),
+	Surface       = Color3.fromRGB(26, 26, 38),
+	SurfaceHover  = Color3.fromRGB(34, 34, 50),
+	Border        = Color3.fromRGB(50, 50, 72),
+	Accent        = Color3.fromRGB(99, 102, 241),
+	AccentGlow    = Color3.fromRGB(139, 92, 246),
+	TabActive     = Color3.fromRGB(99, 102, 241),
+	TabInactive   = Color3.fromRGB(18, 18, 26),
+	ToggleOff     = Color3.fromRGB(55, 55, 75),
+	ToggleOn      = Color3.fromRGB(99, 102, 241),
+	TextPrimary   = Color3.fromRGB(240, 240, 255),
+	TextSecondary = Color3.fromRGB(140, 140, 170),
+	Danger        = Color3.fromRGB(239, 68, 68),
+	Success       = Color3.fromRGB(34, 197, 94),
+	TitleBar      = Color3.fromRGB(18, 18, 26),
+	TabBar        = Color3.fromRGB(18, 18, 26),
+}
+
+-- =====================
+--   TWEEN CONFIG
+-- =====================
+local FastTween = TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local SlowTween = TweenInfo.new(0.4,  Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+
+-- =====================
+--   SCREEN GUI
+-- =====================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "Anxiee Scripts"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.Parent = PlayerGui
+
+-- =====================
+--   JANELA PRINCIPAL
+-- =====================
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, GUI_W, 0, GUI_H)
+MainFrame.Position = UDim2.new(0.5, -GUI_W/2, 1.5, 0)
+MainFrame.BackgroundColor3 = Colors.Background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Parent = ScreenGui
+
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 18)
+MainCorner.Parent = MainFrame
+
+local MainStroke = Instance.new("UIStroke")
+MainStroke.Color = Colors.Border
+MainStroke.Thickness = 1.5
+MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+MainStroke.Parent = MainFrame
+
+-- =====================
+--   TÍTULO BAR (48px)
+-- =====================
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 48)
+TitleBar.Position = UDim2.new(0, 0, 0, 0)
+TitleBar.BackgroundColor3 = Colors.TitleBar
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 18)
+
+local TitleBarFix = Instance.new("Frame")
+TitleBarFix.Size = UDim2.new(1, 0, 0, 18)
+TitleBarFix.Position = UDim2.new(0, 0, 1, -18)
+TitleBarFix.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+TitleBarFix.BorderSizePixel = 0
+TitleBarFix.Parent = TitleBar
+
+local TitleDot = Instance.new("Frame")
+TitleDot.Size = UDim2.new(0, 8, 0, 8)
+TitleDot.Position = UDim2.new(0, 16, 0.5, -4)
+TitleDot.BackgroundColor3 = Colors.Accent
+TitleDot.BorderSizePixel = 0
+TitleDot.Parent = TitleBar
+Instance.new("UICorner", TitleDot).CornerRadius = UDim.new(1, 0)
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Size = UDim2.new(1, -80, 1, 0)
+TitleLabel.Position = UDim2.new(0, 34, 0, 0)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Text = "⚡ Anxiie Scripts"
+TitleLabel.TextColor3 = Colors.TextPrimary
+TitleLabel.TextSize = 15
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = TitleBar
+
+local SubLabel = Instance.new("TextLabel")
+SubLabel.Size = UDim2.new(0, 80, 1, 0)
+SubLabel.Position = UDim2.new(0, 34, 0, 14)
+SubLabel.BackgroundTransparency = 1
+SubLabel.Text = "v1.0"
+SubLabel.TextColor3 = Colors.TextSecondary
+SubLabel.TextSize = 10
+SubLabel.Font = Enum.Font.Gotham
+SubLabel.TextXAlignment = Enum.TextXAlignment.Left
+SubLabel.Parent = TitleBar
+
+local function CreateIconButton(name, icon, posX, bgColor, hoverColor, parent)
+	local btn = Instance.new("TextButton")
+	btn.Name = name
+	btn.Size = UDim2.new(0, 30, 0, 30)
+	btn.Position = UDim2.new(1, posX, 0.5, -15)
+	btn.BackgroundColor3 = bgColor
+	btn.BorderSizePixel = 0
+	btn.Text = icon
+	btn.TextColor3 = Colors.TextPrimary
+	btn.TextSize = 13
+	btn.Font = Enum.Font.GothamBold
+	btn.AutoButtonColor = false
+	btn.Parent = parent
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, FastTween, {BackgroundColor3 = hoverColor}):Play()
+	end)
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, FastTween, {BackgroundColor3 = bgColor}):Play()
+	end)
+	return btn
+end
+
+local MinBtn = CreateIconButton("MinBtn", "—", -38, Colors.Surface, Colors.SurfaceHover, TitleBar)
+
+-- =====================
+--   TAB BAR (38px)
+-- =====================
+local TabBar = Instance.new("Frame")
+TabBar.Name = "TabBar"
+TabBar.Size = UDim2.new(1, 0, 0, 38)
+TabBar.Position = UDim2.new(0, 0, 0, 48)
+TabBar.BackgroundColor3 = Colors.TabBar
+TabBar.BorderSizePixel = 0
+TabBar.Parent = MainFrame
+
+local TabSep = Instance.new("Frame")
+TabSep.Size = UDim2.new(1, 0, 0, 1)
+TabSep.Position = UDim2.new(0, 0, 1, -1)
+TabSep.BackgroundColor3 = Colors.Border
+TabSep.BorderSizePixel = 0
+TabSep.Parent = TabBar
+
+-- =====================
+--   PAGES CONTAINER
+-- =====================
+local PagesContainer = Instance.new("Frame")
+PagesContainer.Name = "PagesContainer"
+PagesContainer.Size = UDim2.new(1, 0, 0, GUI_H - 86 - 18)
+PagesContainer.Position = UDim2.new(0, 0, 0, 86)
+PagesContainer.BackgroundTransparency = 1
+PagesContainer.ClipsDescendants = false
+PagesContainer.Parent = MainFrame
+
+-- =====================
+--   HELPERS
+-- =====================
+local function CreatePage(name)
+	local page = Instance.new("Frame")
+	page.Name = name
+	page.Size = UDim2.new(1, 0, 0, GUI_H - 86 - 18)
+	page.Position = UDim2.new(0, 0, 0, 0)
+	page.BackgroundTransparency = 1
+	page.Visible = false
+	page.ClipsDescendants = false
+	page.Parent = PagesContainer
+
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft   = UDim.new(0, 16)
+	pad.PaddingRight  = UDim.new(0, 16)
+	pad.PaddingTop    = UDim.new(0, 14)
+	pad.PaddingBottom = UDim.new(0, 14)
+	pad.Parent = page
+
+	local layout = Instance.new("UIListLayout")
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
+	layout.Padding = UDim.new(0, 10)
+	layout.Parent = page
+
+	return page
+end
+
+local function CreateCard(parent, order)
+	local card = Instance.new("Frame")
+	card.Size = UDim2.new(1, 0, 0, 58)
+	card.BackgroundColor3 = Colors.Surface
+	card.BorderSizePixel = 0
+	card.LayoutOrder = order
+	card.Parent = parent
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 12)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Colors.Border
+	stroke.Thickness = 1
+	stroke.Parent = card
+	return card, stroke
+end
+
+local function AddCardInfo(card, icon, iconColor, title, subtitle)
+	local iconBox = Instance.new("TextLabel")
+	iconBox.Size = UDim2.new(0, 36, 0, 36)
+	iconBox.Position = UDim2.new(0, 10, 0.5, -18)
+	iconBox.BackgroundColor3 = Color3.fromRGB(32, 32, 48)
+	iconBox.Text = icon
+	iconBox.TextSize = 16
+	iconBox.Font = Enum.Font.GothamBold
+	iconBox.TextColor3 = iconColor
+	iconBox.BorderSizePixel = 0
+	iconBox.Parent = card
+	Instance.new("UICorner", iconBox).CornerRadius = UDim.new(0, 10)
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, -120, 0, 20)
+	lbl.Position = UDim2.new(0, 56, 0, 10)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = title
+	lbl.TextColor3 = Colors.TextPrimary
+	lbl.TextSize = 13
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.Parent = card
+
+	local sub = Instance.new("TextLabel")
+	sub.Size = UDim2.new(1, -120, 0, 16)
+	sub.Position = UDim2.new(0, 56, 0, 32)
+	sub.BackgroundTransparency = 1
+	sub.Text = subtitle
+	sub.TextColor3 = Colors.TextSecondary
+	sub.TextSize = 11
+	sub.Font = Enum.Font.Gotham
+	sub.TextXAlignment = Enum.TextXAlignment.Left
+	sub.Parent = card
+
+	return sub
+end
+
+local function AddToggle(card)
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.new(0, 52, 0, 28)
+	bg.Position = UDim2.new(1, -62, 0.5, -14)
+	bg.BackgroundColor3 = Colors.ToggleOff
+	bg.BorderSizePixel = 0
+	bg.Parent = card
+	Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
+
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 22, 0, 22)
+	knob.Position = UDim2.new(0, 3, 0.5, -11)
+	knob.BackgroundColor3 = Color3.fromRGB(200, 200, 220)
+	knob.BorderSizePixel = 0
+	knob.Parent = bg
+	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+	local hitbox = Instance.new("TextButton")
+	hitbox.Size = UDim2.new(1, 0, 1, 0)
+	hitbox.BackgroundTransparency = 1
+	hitbox.Text = ""
+	hitbox.Parent = card
+
+	return bg, knob, hitbox
+end
+
+local function ToggleOn(bg, knob)
+	TweenService:Create(knob, FastTween, {Position = UDim2.new(0, 27, 0.5, -11), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
+	TweenService:Create(bg, FastTween, {BackgroundColor3 = Colors.ToggleOn}):Play()
+end
+
+local function ToggleOff(bg, knob)
+	TweenService:Create(knob, FastTween, {Position = UDim2.new(0, 3, 0.5, -11), BackgroundColor3 = Color3.fromRGB(200,200,220)}):Play()
+	TweenService:Create(bg, FastTween, {BackgroundColor3 = Colors.ToggleOff}):Play()
+end
+
+-- =====================
+--   TAB BUTTONS
+-- =====================
+local TabButtons = {}
+
+local function CreateTab(label, index, total)
+	local btn = Instance.new("TextButton")
+	btn.Name = label
+	btn.Size = UDim2.new(1/total, 0, 1, 0)
+	btn.Position = UDim2.new((index - 1) / total, 0, 0, 0)
+	btn.BackgroundColor3 = Colors.TabInactive
+	btn.BorderSizePixel = 0
+	btn.Text = label
+	btn.TextColor3 = Colors.TextSecondary
+	btn.TextSize = 11
+	btn.Font = Enum.Font.GothamBold
+	btn.AutoButtonColor = false
+	btn.ClipsDescendants = true
+	btn.Parent = TabBar
+
+	local indicator = Instance.new("Frame")
+	indicator.Size = UDim2.new(0.6, 0, 0, 2)
+	indicator.Position = UDim2.new(0.2, 0, 1, -2)
+	indicator.BackgroundColor3 = Colors.Accent
+	indicator.BorderSizePixel = 0
+	indicator.BackgroundTransparency = 1
+	indicator.Parent = btn
+	Instance.new("UICorner", indicator).CornerRadius = UDim.new(1, 0)
+
+	TabButtons[label] = {btn = btn, indicator = indicator}
+	return btn
+end
+
+local tabMain     = CreateTab("MAIN",     1, 2)
+local tabSettings = CreateTab("SETTINGS", 2, 2)
+
+-- =====================
+--   PÁGINAS
+-- =====================
+local PageMain     = CreatePage("MAIN")
+local PageSettings = CreatePage("SETTINGS")
+
+-- ============  MAIN  ============
+local gmCard, gmStroke = CreateCard(PageMain, 1)
+local gmSub = AddCardInfo(gmCard, "🎯", Colors.Accent, "Aimbot", "Desativado")
+local gmBG, gmKnob, gmHit = AddToggle(gmCard)
+
+local spCard, _ = CreateCard(PageMain, 2)
+local spSub = AddCardInfo(spCard, "👁️", Color3.fromRGB(251, 191, 36), "ESP", "Desativado")
+local spBG, spKnob, spHit = AddToggle(spCard)
+
+local tkCard, tkStroke = CreateCard(PageMain, 3)
+local tkSub = AddCardInfo(tkCard, "💨", Color3.fromRGB(167, 139, 250), "Teleport Kill", "Desativado")
+local tkBG, tkKnob, tkHit = AddToggle(tkCard)
+
+-- ============  SETTINGS  ============
+local infoCard = Instance.new("Frame")
+infoCard.Size = UDim2.new(1, 0, 0, 70)
+infoCard.BackgroundColor3 = Color3.fromRGB(26, 26, 38)
+infoCard.BorderSizePixel = 0
+infoCard.LayoutOrder = 1
+infoCard.Parent = PageSettings
+Instance.new("UICorner", infoCard).CornerRadius = UDim.new(0, 12)
+local iStroke = Instance.new("UIStroke"); iStroke.Color = Colors.Border; iStroke.Thickness = 1; iStroke.Parent = infoCard
+
+local infoTitle = Instance.new("TextLabel")
+infoTitle.Size = UDim2.new(1, -20, 0, 24)
+infoTitle.Position = UDim2.new(0, 14, 0, 10)
+infoTitle.BackgroundTransparency = 1
+infoTitle.Text = "⚡ Rivals Script  v1.0"
+infoTitle.TextColor3 = Colors.TextPrimary
+infoTitle.TextSize = 13
+infoTitle.Font = Enum.Font.GothamBold
+infoTitle.TextXAlignment = Enum.TextXAlignment.Left
+infoTitle.Parent = infoCard
+
+local infoSub = Instance.new("TextLabel")
+infoSub.Size = UDim2.new(1, -20, 0, 20)
+infoSub.Position = UDim2.new(0, 14, 0, 38)
+infoSub.BackgroundTransparency = 1
+infoSub.Text = "Aimbot  •  ESP  •  Teleport Kill"
+infoSub.TextColor3 = Colors.TextSecondary
+infoSub.TextSize = 11
+infoSub.Font = Enum.Font.Gotham
+infoSub.TextXAlignment = Enum.TextXAlignment.Left
+infoSub.Parent = infoCard
+
+local discordCard = Instance.new("Frame")
+discordCard.Size = UDim2.new(1, 0, 0, 58)
+discordCard.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+discordCard.BorderSizePixel = 0
+discordCard.LayoutOrder = 2
+discordCard.Parent = PageSettings
+Instance.new("UICorner", discordCard).CornerRadius = UDim.new(0, 12)
+
+local discordIconBox = Instance.new("TextLabel")
+discordIconBox.Size = UDim2.new(0, 36, 0, 36)
+discordIconBox.Position = UDim2.new(0, 10, 0.5, -18)
+discordIconBox.BackgroundColor3 = Color3.fromRGB(60, 70, 200)
+discordIconBox.Text = "💬"
+discordIconBox.TextSize = 16
+discordIconBox.Font = Enum.Font.GothamBold
+discordIconBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+discordIconBox.BorderSizePixel = 0
+discordIconBox.Parent = discordCard
+Instance.new("UICorner", discordIconBox).CornerRadius = UDim.new(0, 10)
+
+local discordTitle = Instance.new("TextLabel")
+discordTitle.Size = UDim2.new(1, -70, 0, 20)
+discordTitle.Position = UDim2.new(0, 56, 0, 10)
+discordTitle.BackgroundTransparency = 1
+discordTitle.Text = "Discord"
+discordTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+discordTitle.TextSize = 13
+discordTitle.Font = Enum.Font.GothamBold
+discordTitle.TextXAlignment = Enum.TextXAlignment.Left
+discordTitle.Parent = discordCard
+
+local discordSub = Instance.new("TextLabel")
+discordSub.Size = UDim2.new(1, -70, 0, 16)
+discordSub.Position = UDim2.new(0, 56, 0, 32)
+discordSub.BackgroundTransparency = 1
+discordSub.Text = "Entrar no servidor"
+discordSub.TextColor3 = Color3.fromRGB(200, 210, 255)
+discordSub.TextSize = 11
+discordSub.Font = Enum.Font.Gotham
+discordSub.TextXAlignment = Enum.TextXAlignment.Left
+discordSub.Parent = discordCard
+
+local discordBtn = Instance.new("TextButton")
+discordBtn.Size = UDim2.new(1, 0, 1, 0)
+discordBtn.BackgroundTransparency = 1
+discordBtn.Text = ""
+discordBtn.Parent = discordCard
+
+discordBtn.MouseButton1Click:Connect(function()
+	setclipboard("https://discord.gg/FMP62xQAEa")
+	discordSub.Text = "Link copiado! ✓"
+	task.delay(2, function()
+		discordSub.Text = "Entrar no servidor"
+	end)
+end)
+
+-- =====================
+--   LÓGICA DAS TABS
+-- =====================
+local Pages = {
+	["MAIN"]     = PageMain,
+	["SETTINGS"] = PageSettings,
+}
+
+local function SwitchTab(name)
+	CurrentTab = name
+	for tabName, data in pairs(TabButtons) do
+		local active = tabName == name
+		TweenService:Create(data.btn, FastTween, {
+			TextColor3 = active and Colors.TextPrimary or Colors.TextSecondary,
+			BackgroundColor3 = active and Color3.fromRGB(26, 26, 38) or Colors.TabInactive,
+		}):Play()
+		TweenService:Create(data.indicator, FastTween, {
+			BackgroundTransparency = active and 0 or 1,
+		}):Play()
+	end
+	for pageName, page in pairs(Pages) do
+		page.Visible = pageName == name
+	end
+end
+
+tabMain.MouseButton1Click:Connect(function()     SwitchTab("MAIN")     end)
+tabSettings.MouseButton1Click:Connect(function() SwitchTab("SETTINGS") end)
+
+SwitchTab("MAIN")
+
+-- =============================================
+--   AIMBOT V7 - CORRIGIDO
+--   - FOV centralizado na crosshair real
+--   - Mira trava e acompanha o alvo
+--   - Bloqueia câmera/mouse enquanto travado
+-- =============================================
+local AimSettings = {
+	FOV        = 150,
+	Smoothness = 1.0,  -- quanto menor, mais suave o tracking (0.1~0.5)
+	TargetPart = "Head",
+	TeamCheck  = true,
+	WallCheck  = true,
+}
+
+local Aimbot_ScreenGui  = nil
+local Aimbot_Active     = false
+local Aimbot_LockedTarget = nil  -- alvo atualmente travado
+local Aimbot_InputConn  = nil    -- conexão que bloqueia input do mouse
+
+-- Retorna o centro real da viewport (crosshair)
+local function GetScreenCenter()
+	local cam = workspace.CurrentCamera
+	return Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
+end
+
+local function Aimbot_GetVM()
+	local vmFolder = workspace:FindFirstChild("ViewModels")
+	if vmFolder and vmFolder:FindFirstChild("FirstPerson") then
+		for _, v in pairs(vmFolder.FirstPerson:GetChildren()) do
+			if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") then
+				return v
+			end
+		end
+	end
+	return nil
+end
+
+local function Aimbot_IsVisible(part, char)
+	local cam = workspace.CurrentCamera
+	local ray = RaycastParams.new()
+	ray.FilterType = Enum.RaycastFilterType.Exclude
+	ray.FilterDescendantsInstances = {
+		Player.Character,
+		cam,
+		workspace:FindFirstChild("ViewModels")
+	}
+	local origin    = cam.CFrame.Position
+	local direction = part.Position - origin
+	local res = workspace:Raycast(origin, direction, ray)
+	return res and res.Instance:IsDescendantOf(char)
+end
+
+-- Verifica se um player está dentro do FOV (distância em pixels do centro da tela)
+local function Aimbot_InFOV(part)
+	local cam = workspace.CurrentCamera
+	local pos, onScreen = cam:WorldToViewportPoint(part.Position)
+	if not onScreen then return false, math.huge end
+	local screenPos = Vector2.new(pos.X, pos.Y)
+	local dist = (screenPos - GetScreenCenter()).Magnitude
+	return dist <= AimSettings.FOV, dist
+end
+
+-- Procura o melhor alvo dentro do FOV
+local function Aimbot_GetTarget()
+	local target, shortest = nil, AimSettings.FOV
+	local myTeam = Player:GetAttribute("TeamID")
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= Player and p.Character then
+			if not AimSettings.TeamCheck or p:GetAttribute("TeamID") ~= myTeam then
+				local part = p.Character:FindFirstChild(AimSettings.TargetPart)
+				local hum  = p.Character:FindFirstChild("Humanoid")
+				if part and hum and hum.Health > 0 then
+					local inFOV, dist = Aimbot_InFOV(part)
+					if inFOV and dist < shortest then
+						if not AimSettings.WallCheck or Aimbot_IsVisible(part, p.Character) then
+							target  = part
+							shortest = dist
+						end
+					end
+				end
+			end
+		end
+	end
+	return target
+end
+
+-- Verifica se o alvo ainda está vivo e dentro do FOV
+local function Aimbot_IsTargetValid(part)
+	if not part or not part.Parent then return false end
+	local char = part.Parent
+	if not char then return false end
+	local hum = char:FindFirstChild("Humanoid")
+	if not hum or hum.Health <= 0 then return false end
+	local inFOV, _ = Aimbot_InFOV(part)
+	return inFOV
+end
+
+local function Aimbot_Start()
+	Aimbot_Active = true
+
+	-- GUI do FOV
+	if Aimbot_ScreenGui then Aimbot_ScreenGui:Destroy() end
+	Aimbot_ScreenGui = Instance.new("ScreenGui")
+	Aimbot_ScreenGui.Name = "Aimbot_FOV_V7"
+	Aimbot_ScreenGui.ResetOnSpawn = false
+	Aimbot_ScreenGui.IgnoreGuiInset = true   -- <-- ignora o inset do Roblox (corrige posição)
+	Aimbot_ScreenGui.Parent = PlayerGui
+
+	-- FOV Circle - centralizado usando AnchorPoint
+	local fovFrame = Instance.new("Frame")
+	fovFrame.Name = "FOVFrame"
+	fovFrame.Size = UDim2.new(0, AimSettings.FOV * 2, 0, AimSettings.FOV * 2)
+	fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)             -- ancora no centro do frame
+	fovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)           -- posição exata no centro da tela
+	fovFrame.BackgroundTransparency = 1
+	fovFrame.Parent = Aimbot_ScreenGui
+
+	local uiStroke = Instance.new("UIStroke")
+	uiStroke.Name = "FOVStroke"
+	uiStroke.Color = Color3.fromRGB(255, 255, 255)
+	uiStroke.Thickness = 2
+	uiStroke.Parent = fovFrame
+	Instance.new("UICorner", fovFrame).CornerRadius = UDim.new(1, 0)
+
+	-- Loop principal do aimbot
+	RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
+		if not Aimbot_Active then return end
+
+		local cam    = workspace.CurrentCamera
+		local stroke = fovFrame:FindFirstChild("FOVStroke")
+
+		-- Se tem alvo travado, verifica se ainda é válido
+		if Aimbot_LockedTarget then
+			if not Aimbot_IsTargetValid(Aimbot_LockedTarget) then
+				-- Alvo saiu do FOV ou morreu, libera o lock
+				Aimbot_LockedTarget = nil
+				if Aimbot_InputConn then
+					Aimbot_InputConn:Disconnect()
+					Aimbot_InputConn = nil
+				end
+			end
+		end
+
+		-- Se não tem alvo travado, busca um novo
+		if not Aimbot_LockedTarget then
+			Aimbot_LockedTarget = Aimbot_GetTarget()
+		end
+
+		if Aimbot_LockedTarget then
+			local targetPos = Aimbot_LockedTarget.Position
+			local lookCF    = CFrame.new(cam.CFrame.Position, targetPos)
+
+			-- Interpola suavemente a câmera em direção ao alvo
+			cam.CFrame = cam.CFrame:Lerp(lookCF, AimSettings.Smoothness)
+
+			-- Alinha HumanoidRootPart do player para olhar para o alvo (horizontal)
+			if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+				local hrp      = Player.Character.HumanoidRootPart
+				local flatLook = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
+				hrp.CFrame     = hrp.CFrame:Lerp(CFrame.new(hrp.Position, flatLook), AimSettings.Smoothness)
+			end
+
+			-- Alinha ViewModel se existir
+			local vm = Aimbot_GetVM()
+			if vm then
+				local vmHRP = vm:FindFirstChild("HumanoidRootPart")
+				if vmHRP then
+					vmHRP.CFrame = cam.CFrame
+				end
+			end
+
+			-- Muda cor do FOV para vermelho (alvo travado)
+			if stroke then stroke.Color = Color3.fromRGB(255, 50, 50) end
+		else
+			-- Sem alvo, FOV branco
+			if stroke then stroke.Color = Color3.fromRGB(255, 255, 255) end
+		end
+	end)
+end
+
+local function Aimbot_Stop()
+	Aimbot_Active = false
+	Aimbot_LockedTarget = nil
+
+	-- Desconecta bloqueio de input se estiver ativo
+	if Aimbot_InputConn then
+		Aimbot_InputConn:Disconnect()
+		Aimbot_InputConn = nil
+	end
+
+	pcall(function() RunService:UnbindFromRenderStep("AimbotUpdate") end)
+
+	if Aimbot_ScreenGui then
+		Aimbot_ScreenGui:Destroy()
+		Aimbot_ScreenGui = nil
+	end
+end
+
+-- Toggle Aimbot
+gmHit.MouseButton1Click:Connect(function()
+	AimbotEnabled = not AimbotEnabled
+	if AimbotEnabled then
+		ToggleOn(gmBG, gmKnob)
+		TweenService:Create(gmStroke, FastTween, {Color = Colors.Accent}):Play()
+		TweenService:Create(MainStroke, FastTween, {Color = Colors.AccentGlow}):Play()
+		gmSub.Text = "Ativado"
+		gmSub.TextColor3 = Colors.Success
+		Aimbot_Start()
+	else
+		ToggleOff(gmBG, gmKnob)
+		TweenService:Create(gmStroke, FastTween, {Color = Colors.Border}):Play()
+		TweenService:Create(MainStroke, FastTween, {Color = Colors.Border}):Play()
+		gmSub.Text = "Desativado"
+		gmSub.TextColor3 = Colors.TextSecondary
+		Aimbot_Stop()
+	end
+end)
+
+-- =====================
+--   ESP - LÓGICA INLINE
+-- =====================
+local Camera = workspace.CurrentCamera
+
+local ESP_Settings = {
+	VisibleColor  = Color3.fromRGB(0, 255, 0),
+	HiddenColor   = Color3.fromRGB(255, 0, 0),
+	LineThickness = 2.5,
+}
+
+local ESP_Tracers    = {}
+local ESP_Connection = nil
+
+local function ESP_GetTeamID(p)
+	return p:GetAttribute("TeamID")
+end
+
+local function ESP_IsEnemy(p)
+	local myTeam     = ESP_GetTeamID(Player)
+	local targetTeam = ESP_GetTeamID(p)
+	return myTeam ~= targetTeam
+end
+
+local function ESP_IsVisible(targetPart)
+	local origin    = Camera.CFrame.Position
+	local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
+	local params    = RaycastParams.new()
+	params.FilterDescendantsInstances = {Player.Character, Camera}
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local result = workspace:Raycast(origin, direction, params)
+	if result then
+		return result.Instance:IsDescendantOf(targetPart.Parent)
+	end
+	return true
+end
+
+local function ESP_CleanupPlayer(p)
+	if ESP_Tracers[p.Name] then
+		pcall(function() ESP_Tracers[p.Name]:Remove() end)
+		ESP_Tracers[p.Name] = nil
+	end
+	if p.Character then
+		local head = p.Character:FindFirstChild("Head")
+		if head then
+			local b = head:FindFirstChild("EnemyBillboard")
+			if b then b:Destroy() end
+		end
+	end
+end
+
+local function ESP_Stop()
+	if ESP_Connection then
+		ESP_Connection:Disconnect()
+		ESP_Connection = nil
+	end
+	for _, p in pairs(Players:GetPlayers()) do
+		ESP_CleanupPlayer(p)
+	end
+	ESP_Tracers = {}
+end
+
+local function ESP_Start()
+	ESP_Connection = RunService.RenderStepped:Connect(function()
+		for _, p in pairs(Players:GetPlayers()) do
+			if p ~= Player and p.Character
+				and p.Character:FindFirstChild("HumanoidRootPart")
+				and p.Character:FindFirstChild("Head") then
+
+				if ESP_IsEnemy(p) then
+					local hrp = p.Character.HumanoidRootPart
+					local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+
+					if onScreen then
+						local visible      = ESP_IsVisible(p.Character.Head)
+						local currentColor = visible and ESP_Settings.VisibleColor or ESP_Settings.HiddenColor
+
+						if not ESP_Tracers[p.Name] then
+							local line           = Drawing.new("Line")
+							line.Thickness       = ESP_Settings.LineThickness
+							line.Transparency    = 1
+							ESP_Tracers[p.Name]  = line
+						end
+						local line   = ESP_Tracers[p.Name]
+						line.Color   = currentColor
+						line.From    = Vector2.new(Camera.ViewportSize.X / 2, 0)
+						line.To      = Vector2.new(vector.X, vector.Y)
+						line.Visible = true
+
+						local head = p.Character.Head
+						local b    = head:FindFirstChild("EnemyBillboard")
+						if not b then
+							b              = Instance.new("BillboardGui", head)
+							b.Name         = "EnemyBillboard"
+							b.AlwaysOnTop  = true
+							b.Size         = UDim2.new(0, 100, 0, 50)
+							b.StudsOffset  = Vector3.new(0, 2, 0)
+							local t        = Instance.new("TextLabel", b)
+							t.Name         = "PlayerName"
+							t.BackgroundTransparency = 1
+							t.Size         = UDim2.new(1, 0, 1, 0)
+							t.Font         = Enum.Font.GothamBold
+							t.TextSize     = 14
+						end
+						local label = b:FindFirstChild("PlayerName")
+						if label then
+							label.Text       = p.Name
+							label.TextColor3 = currentColor
+						end
+					else
+						if ESP_Tracers[p.Name] then
+							ESP_Tracers[p.Name].Visible = false
+						end
+					end
+				else
+					ESP_CleanupPlayer(p)
+				end
+			end
+		end
+	end)
+end
+
+Players.PlayerRemoving:Connect(function(p)
+	ESP_CleanupPlayer(p)
+end)
+
+spHit.MouseButton1Click:Connect(function()
+	ESPEnabled = not ESPEnabled
+	if ESPEnabled then
+		ToggleOn(spBG, spKnob)
+		spSub.Text = "Ativado"; spSub.TextColor3 = Colors.Success
+		ESP_Start()
+	else
+		ToggleOff(spBG, spKnob)
+		spSub.Text = "Desativado"; spSub.TextColor3 = Colors.TextSecondary
+		ESP_Stop()
+	end
+end)
+
+-- =====================
+--   TELEPORT KILL - LÓGICA INLINE (V6.5)
+-- =====================
+local TK_Settings = {
+	FOV           = 150,
+	Smoothness    = 1.0,
+	TargetPart    = "Head",
+	TeamCheck     = true,
+	StickToTarget = false,
+	StickOffset   = Vector3.new(0, 3, 6),
+}
+
+local TK_ScreenGui     = nil
+local TK_HeartbeatConn = nil
+
+local function TK_GetClosestEnemy()
+	local target, shortestDist = nil, math.huge
+	local myTeam = Player:GetAttribute("TeamID")
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+			local enemyTeam = p:GetAttribute("TeamID")
+			local isEnemy = not TK_Settings.TeamCheck or (myTeam == nil or myTeam == "") or (enemyTeam ~= myTeam)
+			local hum = p.Character:FindFirstChild("Humanoid")
+			if isEnemy and hum and hum.Health > 0 then
+				local dist = (p.Character.HumanoidRootPart.Position - Player.Character.HumanoidRootPart.Position).Magnitude
+				if dist < shortestDist then
+					target = p.Character
+					shortestDist = dist
+				end
+			end
+		end
+	end
+	return target
+end
+
+local function TK_Start()
+	TK_Settings.StickToTarget = true
+
+	TK_ScreenGui = Instance.new("ScreenGui")
+	TK_ScreenGui.Name = "Aimbot_Pro_V6"
+	TK_ScreenGui.ResetOnSpawn = false
+	TK_ScreenGui.Parent = PlayerGui
+
+	local fovFrame = Instance.new("Frame", TK_ScreenGui)
+	fovFrame.Name = "FOVFrame"
+	fovFrame.Size = UDim2.new(0, TK_Settings.FOV * 2, 0, TK_Settings.FOV * 2)
+	fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	fovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+	fovFrame.BackgroundTransparency = 1
+	local uiStroke = Instance.new("UIStroke", fovFrame)
+	uiStroke.Name = "FOVStroke"
+	uiStroke.Color = Color3.fromRGB(255, 0, 0)
+	uiStroke.Thickness = 2
+	Instance.new("UICorner", fovFrame).CornerRadius = UDim.new(1, 0)
+
+	TK_HeartbeatConn = RunService.Heartbeat:Connect(function()
+		if TK_Settings.StickToTarget and Player.Character then
+			local targetChar = TK_GetClosestEnemy()
+			local myHRP = Player.Character:FindFirstChild("HumanoidRootPart")
+			if targetChar and myHRP then
+				local enemyHRP = targetChar:FindFirstChild("HumanoidRootPart")
+				if enemyHRP then
+					myHRP.CFrame = enemyHRP.CFrame * CFrame.new(TK_Settings.StickOffset)
+					myHRP.Velocity = Vector3.new(0, 0, 0)
+					myHRP.RotVelocity = Vector3.new(0, 0, 0)
+				end
+			end
+			for _, part in pairs(Player.Character:GetDescendants()) do
+				if part:IsA("BasePart") then part.CanCollide = false end
+			end
+		end
+	end)
+
+	RunService:BindToRenderStep("TKAimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
+		local targetChar = TK_GetClosestEnemy()
+		local stroke = TK_ScreenGui
+			and TK_ScreenGui:FindFirstChild("FOVFrame")
+			and TK_ScreenGui.FOVFrame:FindFirstChild("FOVStroke")
+
+		if targetChar then
+			local targetPart = targetChar:FindFirstChild(TK_Settings.TargetPart)
+			if targetPart then
+				local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(targetPart.Position)
+				local mouseDist = (Vector2.new(pos.X, pos.Y) - Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, workspace.CurrentCamera.ViewportSize.Y/2)).Magnitude
+				if (onScreen and mouseDist < TK_Settings.FOV) or TK_Settings.StickToTarget then
+					local lookCF = CFrame.new(workspace.CurrentCamera.CFrame.Position, targetPart.Position)
+					workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(lookCF, TK_Settings.Smoothness)
+					if stroke then stroke.Color = Color3.fromRGB(255, 0, 0) end
+				else
+					if stroke then stroke.Color = Color3.fromRGB(255, 255, 255) end
+				end
+			end
+		end
+	end)
+end
+
+local function TK_Stop()
+	if TK_HeartbeatConn then
+		TK_HeartbeatConn:Disconnect()
+		TK_HeartbeatConn = nil
+	end
+	pcall(function() RunService:UnbindFromRenderStep("TKAimbotUpdate") end)
+	if Player.Character then
+		for _, part in pairs(Player.Character:GetDescendants()) do
+			if part:IsA("BasePart") then part.CanCollide = true end
+		end
+	end
+	TK_Settings.StickToTarget = false
+	if TK_ScreenGui then
+		TK_ScreenGui:Destroy()
+		TK_ScreenGui = nil
+	end
+end
+
+tkHit.MouseButton1Click:Connect(function()
+	TeleportKillEnabled = not TeleportKillEnabled
+	if TeleportKillEnabled then
+		ToggleOn(tkBG, tkKnob)
+		TweenService:Create(tkStroke, FastTween, {Color = Color3.fromRGB(167, 139, 250)}):Play()
+		tkSub.Text = "Ativado"; tkSub.TextColor3 = Colors.Success
+		TK_Start()
+	else
+		ToggleOff(tkBG, tkKnob)
+		TweenService:Create(tkStroke, FastTween, {Color = Colors.Border}):Play()
+		tkSub.Text = "Desativado"; tkSub.TextColor3 = Colors.TextSecondary
+		TK_Stop()
+	end
+end)
+
+-- =====================
+--   BAR MINIMIZADA
+-- =====================
+local MiniBar = Instance.new("Frame")
+MiniBar.Name = "MiniBar"
+MiniBar.Size = UDim2.new(0, 180, 0, 42)
+MiniBar.Position = UDim2.new(0.5, -90, 1.5, 0)
+MiniBar.BackgroundColor3 = Colors.TitleBar
+MiniBar.BorderSizePixel = 0
+MiniBar.Visible = false
+MiniBar.Parent = ScreenGui
+
+Instance.new("UICorner", MiniBar).CornerRadius = UDim.new(0, 21)
+local MiniBarStroke = Instance.new("UIStroke")
+MiniBarStroke.Color = Colors.Border
+MiniBarStroke.Thickness = 1.5
+MiniBarStroke.Parent = MiniBar
+
+local MiniLabel = Instance.new("TextLabel")
+MiniLabel.Size = UDim2.new(1, -50, 1, 0)
+MiniLabel.Position = UDim2.new(0, 16, 0, 0)
+MiniLabel.BackgroundTransparency = 1
+MiniLabel.Text = "⚡ Anxiie Scripts"
+MiniLabel.TextColor3 = Colors.TextPrimary
+MiniLabel.TextSize = 13
+MiniLabel.Font = Enum.Font.GothamBold
+MiniLabel.TextXAlignment = Enum.TextXAlignment.Left
+MiniLabel.Parent = MiniBar
+
+local MaxBtn = Instance.new("TextButton")
+MaxBtn.Size = UDim2.new(0, 30, 0, 30)
+MaxBtn.Position = UDim2.new(1, -38, 0.5, -15)
+MaxBtn.BackgroundColor3 = Colors.Surface
+MaxBtn.BorderSizePixel = 0
+MaxBtn.Text = "⤢"
+MaxBtn.TextColor3 = Colors.TextPrimary
+MaxBtn.TextSize = 14
+MaxBtn.Font = Enum.Font.GothamBold
+MaxBtn.AutoButtonColor = false
+MaxBtn.Parent = MiniBar
+Instance.new("UICorner", MaxBtn).CornerRadius = UDim.new(0, 8)
+
+-- =====================
+--   DRAG
+-- =====================
+local function MakeDraggable(frame, handle)
+	local dragging, dragInput, dragStart, startPos
+	handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = frame.Position
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
+			end)
+		end
+	end)
+	handle.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + delta.X,
+				startPos.Y.Scale, startPos.Y.Offset + delta.Y
+			)
+		end
+	end)
+end
+
+MakeDraggable(MainFrame, TitleBar)
+MakeDraggable(MiniBar, MiniBar)
+
+-- =====================
+--   POSIÇÕES
+-- =====================
+local POS_CENTER     = UDim2.new(0.5, -GUI_W/2, 0.5, -GUI_H/2)
+local POS_OFFSCREEN  = UDim2.new(0.5, -GUI_W/2, 1.5, 0)
+local MINI_CENTER    = UDim2.new(0.5, -90, 0.5, -21)
+local MINI_OFFSCREEN = UDim2.new(0.5, -90, 1.5, 0)
+
+-- =====================
+--   MINIMIZAR / MAXIMIZAR
+-- =====================
+local function Minimize()
+	IsMinimized = true
+	TweenService:Create(MainFrame, SlowTween, {Position = POS_OFFSCREEN}):Play()
+	task.delay(0.35, function()
+		MainFrame.Visible = false
+		MiniBar.Position = MINI_OFFSCREEN
+		MiniBar.Visible = true
+		TweenService:Create(MiniBar, SlowTween, {Position = MINI_CENTER}):Play()
+	end)
+end
+
+local function Maximize()
+	IsMinimized = false
+	TweenService:Create(MiniBar, SlowTween, {Position = MINI_OFFSCREEN}):Play()
+	task.delay(0.25, function()
+		MiniBar.Visible = false
+		MainFrame.Position = POS_OFFSCREEN
+		MainFrame.Visible = true
+		TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
+	end)
+end
+
+MinBtn.MouseButton1Click:Connect(Minimize)
+MaxBtn.MouseButton1Click:Connect(Maximize)
+
+-- =====================
+--   ANIMAÇÃO ENTRADA
+-- =====================
+TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
+
+print("[Anxiee Scripts] Carregado com sucesso! | Aimbot V7")
