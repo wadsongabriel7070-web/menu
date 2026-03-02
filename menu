@@ -23,6 +23,11 @@ local AutoFarmEnabled     = false
 local AutoKillEnabled     = false
 local NotifEnabled        = false
 
+-- PLAYER PAGE
+local SpeedEnabled        = false
+local InfJumpEnabled      = false
+local NoClipEnabled       = false
+
 -- =====================
 --   DIMENSÕES
 -- =====================
@@ -73,7 +78,7 @@ ScreenGui.Parent = PlayerGui
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
 MainFrame.Size = UDim2.new(0, GUI_W, 0, GUI_H)
-MainFrame.Position = UDim2.new(0.5, -GUI_W/2, 1.5, 0)
+MainFrame.Position = UDim2.new(-1, -GUI_W, 0.5, -GUI_H/2)
 MainFrame.BackgroundColor3 = Colors.Background
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
@@ -311,7 +316,7 @@ local function ToggleOff(bg, knob)
 end
 
 -- =====================
---   TAB BUTTONS
+--   TAB BUTTONS  (3 abas agora)
 -- =====================
 local TabButtons = {}
 
@@ -343,13 +348,16 @@ local function CreateTab(label, index, total)
 	return btn
 end
 
-local tabMain     = CreateTab("MAIN",     1, 2)
-local tabSettings = CreateTab("SETTINGS", 2, 2)
+-- 3 tabs: MAIN | PLAYER | SETTINGS
+local tabMain     = CreateTab("MAIN",     1, 3)
+local tabPlayer   = CreateTab("PLAYER",   2, 3)
+local tabSettings = CreateTab("SETTINGS", 3, 3)
 
 -- =====================
 --   PÁGINAS
 -- =====================
 local PageMain     = CreatePage("MAIN")
+local PagePlayer   = CreatePage("PLAYER")
 local PageSettings = CreatePage("SETTINGS")
 
 -- ============  MAIN  ============
@@ -364,6 +372,19 @@ local spBG, spKnob, spHit = AddToggle(spCard)
 local tkCard, tkStroke = CreateCard(PageMain, 3)
 local tkSub = AddCardInfo(tkCard, "💨", Color3.fromRGB(167, 139, 250), "Teleport Kill", "Desativado")
 local tkBG, tkKnob, tkHit = AddToggle(tkCard)
+
+-- ============  PLAYER  ============
+local spdCard, spdStroke = CreateCard(PagePlayer, 1)
+local spdSub = AddCardInfo(spdCard, "⚡", Color3.fromRGB(250, 204, 21), "Speed", "Desativado")
+local spdBG, spdKnob, spdHit = AddToggle(spdCard)
+
+local ijCard, ijStroke = CreateCard(PagePlayer, 2)
+local ijSub = AddCardInfo(ijCard, "🚀", Color3.fromRGB(52, 211, 153), "Inf Jump", "Desativado")
+local ijBG, ijKnob, ijHit = AddToggle(ijCard)
+
+local ncCard, ncStroke = CreateCard(PagePlayer, 3)
+local ncSub = AddCardInfo(ncCard, "👻", Color3.fromRGB(196, 181, 253), "No Clip", "Desativado")
+local ncBG, ncKnob, ncHit = AddToggle(ncCard)
 
 -- ============  SETTINGS  ============
 local infoCard = Instance.new("Frame")
@@ -390,7 +411,7 @@ local infoSub = Instance.new("TextLabel")
 infoSub.Size = UDim2.new(1, -20, 0, 20)
 infoSub.Position = UDim2.new(0, 14, 0, 38)
 infoSub.BackgroundTransparency = 1
-infoSub.Text = "Aimbot  •  ESP  •  Teleport Kill"
+infoSub.Text = "Aimbot  •  ESP  •  Teleport Kill  •  Player"
 infoSub.TextColor3 = Colors.TextSecondary
 infoSub.TextSize = 11
 infoSub.Font = Enum.Font.Gotham
@@ -458,6 +479,7 @@ end)
 -- =====================
 local Pages = {
 	["MAIN"]     = PageMain,
+	["PLAYER"]   = PagePlayer,
 	["SETTINGS"] = PageSettings,
 }
 
@@ -479,6 +501,7 @@ local function SwitchTab(name)
 end
 
 tabMain.MouseButton1Click:Connect(function()     SwitchTab("MAIN")     end)
+tabPlayer.MouseButton1Click:Connect(function()   SwitchTab("PLAYER")   end)
 tabSettings.MouseButton1Click:Connect(function() SwitchTab("SETTINGS") end)
 
 SwitchTab("MAIN")
@@ -491,18 +514,17 @@ SwitchTab("MAIN")
 -- =============================================
 local AimSettings = {
 	FOV        = 150,
-	Smoothness = 1.0,  -- quanto menor, mais suave o tracking (0.1~0.5)
+	Smoothness = 1.0,
 	TargetPart = "Head",
 	TeamCheck  = true,
 	WallCheck  = true,
 }
 
-local Aimbot_ScreenGui  = nil
-local Aimbot_Active     = false
-local Aimbot_LockedTarget = nil  -- alvo atualmente travado
-local Aimbot_InputConn  = nil    -- conexão que bloqueia input do mouse
+local Aimbot_ScreenGui    = nil
+local Aimbot_Active       = false
+local Aimbot_LockedTarget = nil
+local Aimbot_InputConn    = nil
 
--- Retorna o centro real da viewport (crosshair)
 local function GetScreenCenter()
 	local cam = workspace.CurrentCamera
 	return Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
@@ -535,7 +557,6 @@ local function Aimbot_IsVisible(part, char)
 	return res and res.Instance:IsDescendantOf(char)
 end
 
--- Verifica se um player está dentro do FOV (distância em pixels do centro da tela)
 local function Aimbot_InFOV(part)
 	local cam = workspace.CurrentCamera
 	local pos, onScreen = cam:WorldToViewportPoint(part.Position)
@@ -545,7 +566,6 @@ local function Aimbot_InFOV(part)
 	return dist <= AimSettings.FOV, dist
 end
 
--- Procura o melhor alvo dentro do FOV
 local function Aimbot_GetTarget()
 	local target, shortest = nil, AimSettings.FOV
 	local myTeam = Player:GetAttribute("TeamID")
@@ -569,7 +589,6 @@ local function Aimbot_GetTarget()
 	return target
 end
 
--- Verifica se o alvo ainda está vivo e dentro do FOV
 local function Aimbot_IsTargetValid(part)
 	if not part or not part.Parent then return false end
 	local char = part.Parent
@@ -583,20 +602,18 @@ end
 local function Aimbot_Start()
 	Aimbot_Active = true
 
-	-- GUI do FOV
 	if Aimbot_ScreenGui then Aimbot_ScreenGui:Destroy() end
 	Aimbot_ScreenGui = Instance.new("ScreenGui")
 	Aimbot_ScreenGui.Name = "Aimbot_FOV_V7"
 	Aimbot_ScreenGui.ResetOnSpawn = false
-	Aimbot_ScreenGui.IgnoreGuiInset = true   -- <-- ignora o inset do Roblox (corrige posição)
+	Aimbot_ScreenGui.IgnoreGuiInset = true
 	Aimbot_ScreenGui.Parent = PlayerGui
 
-	-- FOV Circle - centralizado usando AnchorPoint
 	local fovFrame = Instance.new("Frame")
 	fovFrame.Name = "FOVFrame"
 	fovFrame.Size = UDim2.new(0, AimSettings.FOV * 2, 0, AimSettings.FOV * 2)
-	fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)             -- ancora no centro do frame
-	fovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)           -- posição exata no centro da tela
+	fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	fovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 	fovFrame.BackgroundTransparency = 1
 	fovFrame.Parent = Aimbot_ScreenGui
 
@@ -607,17 +624,14 @@ local function Aimbot_Start()
 	uiStroke.Parent = fovFrame
 	Instance.new("UICorner", fovFrame).CornerRadius = UDim.new(1, 0)
 
-	-- Loop principal do aimbot
 	RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
 		if not Aimbot_Active then return end
 
 		local cam    = workspace.CurrentCamera
 		local stroke = fovFrame:FindFirstChild("FOVStroke")
 
-		-- Se tem alvo travado, verifica se ainda é válido
 		if Aimbot_LockedTarget then
 			if not Aimbot_IsTargetValid(Aimbot_LockedTarget) then
-				-- Alvo saiu do FOV ou morreu, libera o lock
 				Aimbot_LockedTarget = nil
 				if Aimbot_InputConn then
 					Aimbot_InputConn:Disconnect()
@@ -626,7 +640,6 @@ local function Aimbot_Start()
 			end
 		end
 
-		-- Se não tem alvo travado, busca um novo
 		if not Aimbot_LockedTarget then
 			Aimbot_LockedTarget = Aimbot_GetTarget()
 		end
@@ -634,18 +647,14 @@ local function Aimbot_Start()
 		if Aimbot_LockedTarget then
 			local targetPos = Aimbot_LockedTarget.Position
 			local lookCF    = CFrame.new(cam.CFrame.Position, targetPos)
-
-			-- Interpola suavemente a câmera em direção ao alvo
 			cam.CFrame = cam.CFrame:Lerp(lookCF, AimSettings.Smoothness)
 
-			-- Alinha HumanoidRootPart do player para olhar para o alvo (horizontal)
 			if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
 				local hrp      = Player.Character.HumanoidRootPart
 				local flatLook = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
 				hrp.CFrame     = hrp.CFrame:Lerp(CFrame.new(hrp.Position, flatLook), AimSettings.Smoothness)
 			end
 
-			-- Alinha ViewModel se existir
 			local vm = Aimbot_GetVM()
 			if vm then
 				local vmHRP = vm:FindFirstChild("HumanoidRootPart")
@@ -654,10 +663,8 @@ local function Aimbot_Start()
 				end
 			end
 
-			-- Muda cor do FOV para vermelho (alvo travado)
 			if stroke then stroke.Color = Color3.fromRGB(255, 50, 50) end
 		else
-			-- Sem alvo, FOV branco
 			if stroke then stroke.Color = Color3.fromRGB(255, 255, 255) end
 		end
 	end)
@@ -667,7 +674,6 @@ local function Aimbot_Stop()
 	Aimbot_Active = false
 	Aimbot_LockedTarget = nil
 
-	-- Desconecta bloqueio de input se estiver ativo
 	if Aimbot_InputConn then
 		Aimbot_InputConn:Disconnect()
 		Aimbot_InputConn = nil
@@ -681,7 +687,6 @@ local function Aimbot_Stop()
 	end
 end
 
--- Toggle Aimbot
 gmHit.MouseButton1Click:Connect(function()
 	AimbotEnabled = not AimbotEnabled
 	if AimbotEnabled then
@@ -701,15 +706,19 @@ gmHit.MouseButton1Click:Connect(function()
 	end
 end)
 
--- =====================
---   ESP - LÓGICA INLINE
--- =====================
+-- =============================================
+--   ESP DEFINITIVO - METROS + FILTRO TIME
+--   + TRACERS NO NICKNAME (BILLBOARD)
+-- =============================================
 local Camera = workspace.CurrentCamera
 
 local ESP_Settings = {
-	VisibleColor  = Color3.fromRGB(0, 255, 0),
-	HiddenColor   = Color3.fromRGB(255, 0, 0),
-	LineThickness = 2.5,
+	VisibleColor    = Color3.fromRGB(0, 255, 0),
+	HiddenColor     = Color3.fromRGB(255, 0, 0),
+	LineThickness   = 1.0,
+	KillAllMode     = false,
+	MetrosConversao = 3.57,
+	BillboardOffset = Vector3.new(0, 3, 0),
 }
 
 local ESP_Tracers    = {}
@@ -720,9 +729,18 @@ local function ESP_GetTeamID(p)
 end
 
 local function ESP_IsEnemy(p)
-	local myTeam     = ESP_GetTeamID(Player)
-	local targetTeam = ESP_GetTeamID(p)
-	return myTeam ~= targetTeam
+	if ESP_Settings.KillAllMode then return true end
+	local myTeam     = Player.Team or ESP_GetTeamID(Player)
+	local targetTeam = p.Team     or ESP_GetTeamID(p)
+	if myTeam and targetTeam and myTeam == targetTeam then
+		return false
+	end
+	return true
+end
+
+local function ESP_GetDistanceInMeters(p1, p2)
+	local studs = (p1.Position - p2.Position).Magnitude
+	return math.floor(studs / ESP_Settings.MetrosConversao)
 end
 
 local function ESP_IsVisible(targetPart)
@@ -740,6 +758,7 @@ end
 
 local function ESP_CleanupPlayer(p)
 	if ESP_Tracers[p.Name] then
+		pcall(function() ESP_Tracers[p.Name].Visible = false end)
 		pcall(function() ESP_Tracers[p.Name]:Remove() end)
 		ESP_Tracers[p.Name] = nil
 	end
@@ -765,24 +784,39 @@ end
 
 local function ESP_Start()
 	ESP_Connection = RunService.RenderStepped:Connect(function()
+		local myChar = Player.Character
+		local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
 		for _, p in pairs(Players:GetPlayers()) do
-			if p ~= Player and p.Character
+			if p ~= Player
+				and p.Character
 				and p.Character:FindFirstChild("HumanoidRootPart")
 				and p.Character:FindFirstChild("Head") then
 
 				if ESP_IsEnemy(p) then
-					local hrp = p.Character.HumanoidRootPart
-					local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+					local head = p.Character.Head
+					local hrp  = p.Character.HumanoidRootPart
+
+					local billboardWorldPos = head.Position + ESP_Settings.BillboardOffset
+					local vector, onScreen  = Camera:WorldToViewportPoint(billboardWorldPos)
 
 					if onScreen then
-						local visible      = ESP_IsVisible(p.Character.Head)
-						local currentColor = visible and ESP_Settings.VisibleColor or ESP_Settings.HiddenColor
+						local rayParams = RaycastParams.new()
+						rayParams.FilterDescendantsInstances = {myChar, Camera}
+						rayParams.FilterType = Enum.RaycastFilterType.Exclude
+						local ray = workspace:Raycast(
+							Camera.CFrame.Position,
+							(head.Position - Camera.CFrame.Position),
+							rayParams
+						)
+						local isVisible    = not ray or ray.Instance:IsDescendantOf(p.Character)
+						local currentColor = isVisible and ESP_Settings.VisibleColor or ESP_Settings.HiddenColor
 
 						if not ESP_Tracers[p.Name] then
-							local line           = Drawing.new("Line")
-							line.Thickness       = ESP_Settings.LineThickness
-							line.Transparency    = 1
-							ESP_Tracers[p.Name]  = line
+							local line          = Drawing.new("Line")
+							line.Thickness      = ESP_Settings.LineThickness
+							line.Transparency   = 1
+							ESP_Tracers[p.Name] = line
 						end
 						local line   = ESP_Tracers[p.Name]
 						line.Color   = currentColor
@@ -790,24 +824,25 @@ local function ESP_Start()
 						line.To      = Vector2.new(vector.X, vector.Y)
 						line.Visible = true
 
-						local head = p.Character.Head
-						local b    = head:FindFirstChild("EnemyBillboard")
+						local b = head:FindFirstChild("EnemyBillboard")
 						if not b then
 							b              = Instance.new("BillboardGui", head)
 							b.Name         = "EnemyBillboard"
 							b.AlwaysOnTop  = true
-							b.Size         = UDim2.new(0, 100, 0, 50)
-							b.StudsOffset  = Vector3.new(0, 2, 0)
-							local t        = Instance.new("TextLabel", b)
-							t.Name         = "PlayerName"
+							b.Size         = UDim2.new(0, 150, 0, 50)
+							b.StudsOffset  = ESP_Settings.BillboardOffset
+							local t               = Instance.new("TextLabel", b)
+							t.Name                = "InfoLabel"
 							t.BackgroundTransparency = 1
-							t.Size         = UDim2.new(1, 0, 1, 0)
-							t.Font         = Enum.Font.GothamBold
-							t.TextSize     = 14
+							t.Size                = UDim2.new(1, 0, 1, 0)
+							t.Font                = Enum.Font.GothamBold
+							t.TextSize            = 14
+							t.TextStrokeTransparency = 0
 						end
-						local label = b:FindFirstChild("PlayerName")
+						local label = b:FindFirstChild("InfoLabel")
 						if label then
-							label.Text       = p.Name
+							local metros     = myHRP and ESP_GetDistanceInMeters(myHRP, hrp) or 0
+							label.Text       = string.format("%s\n[%d Metros]", p.Name, metros)
 							label.TextColor3 = currentColor
 						end
 					else
@@ -818,6 +853,8 @@ local function ESP_Start()
 				else
 					ESP_CleanupPlayer(p)
 				end
+			else
+				ESP_CleanupPlayer(p)
 			end
 		end
 	end)
@@ -969,13 +1006,137 @@ tkHit.MouseButton1Click:Connect(function()
 	end
 end)
 
+-- =============================================
+--   PLAYER PAGE - SPEED / INF JUMP / NO CLIP
+-- =============================================
+
+-- ----- SPEED -----
+local Speed_Multiplicador = 1.2  -- Ajuste conforme necessário (quanto maior, mais rápido)
+local Speed_Connection    = nil
+
+local function Speed_Start()
+	Speed_Connection = RunService.Heartbeat:Connect(function()
+		local char = Player.Character
+		local hrp  = char and char:FindFirstChild("HumanoidRootPart")
+		local hum  = char and char:FindFirstChildOfClass("Humanoid")
+		-- Só aplica se o player estiver se movendo
+		if hrp and hum and hum.MoveDirection.Magnitude > 0 then
+			hrp.CFrame = hrp.CFrame + (hum.MoveDirection * Speed_Multiplicador)
+		end
+	end)
+end
+
+local function Speed_Stop()
+	if Speed_Connection then
+		Speed_Connection:Disconnect()
+		Speed_Connection = nil
+	end
+end
+
+spdHit.MouseButton1Click:Connect(function()
+	SpeedEnabled = not SpeedEnabled
+	if SpeedEnabled then
+		ToggleOn(spdBG, spdKnob)
+		TweenService:Create(spdStroke, FastTween, {Color = Color3.fromRGB(250, 204, 21)}):Play()
+		spdSub.Text = "Ativado"; spdSub.TextColor3 = Colors.Success
+		Speed_Start()
+	else
+		ToggleOff(spdBG, spdKnob)
+		TweenService:Create(spdStroke, FastTween, {Color = Colors.Border}):Play()
+		spdSub.Text = "Desativado"; spdSub.TextColor3 = Colors.TextSecondary
+		Speed_Stop()
+	end
+end)
+
+-- ----- INF JUMP -----
+local InfJump_Connection = nil
+
+local function InfJump_Start()
+	InfJump_Connection = UserInputService.JumpRequest:Connect(function()
+		local char = Player.Character
+		if char then
+			local hum = char:FindFirstChild("Humanoid")
+			if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
+		end
+	end)
+end
+
+local function InfJump_Stop()
+	if InfJump_Connection then
+		InfJump_Connection:Disconnect()
+		InfJump_Connection = nil
+	end
+end
+
+ijHit.MouseButton1Click:Connect(function()
+	InfJumpEnabled = not InfJumpEnabled
+	if InfJumpEnabled then
+		ToggleOn(ijBG, ijKnob)
+		TweenService:Create(ijStroke, FastTween, {Color = Color3.fromRGB(52, 211, 153)}):Play()
+		ijSub.Text = "Ativado"; ijSub.TextColor3 = Colors.Success
+		InfJump_Start()
+	else
+		ToggleOff(ijBG, ijKnob)
+		TweenService:Create(ijStroke, FastTween, {Color = Colors.Border}):Play()
+		ijSub.Text = "Desativado"; ijSub.TextColor3 = Colors.TextSecondary
+		InfJump_Stop()
+	end
+end)
+
+-- ----- NO CLIP -----
+local NoClip_Connection = nil
+
+local function NoClip_Start()
+	NoClip_Connection = RunService.Stepped:Connect(function()
+		local char = Player.Character
+		if char then
+			for _, part in pairs(char:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
+			end
+		end
+	end)
+end
+
+local function NoClip_Stop()
+	if NoClip_Connection then
+		NoClip_Connection:Disconnect()
+		NoClip_Connection = nil
+	end
+	-- Restaura colisão
+	local char = Player.Character
+	if char then
+		for _, part in pairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+			end
+		end
+	end
+end
+
+ncHit.MouseButton1Click:Connect(function()
+	NoClipEnabled = not NoClipEnabled
+	if NoClipEnabled then
+		ToggleOn(ncBG, ncKnob)
+		TweenService:Create(ncStroke, FastTween, {Color = Color3.fromRGB(196, 181, 253)}):Play()
+		ncSub.Text = "Ativado"; ncSub.TextColor3 = Colors.Success
+		NoClip_Start()
+	else
+		ToggleOff(ncBG, ncKnob)
+		TweenService:Create(ncStroke, FastTween, {Color = Colors.Border}):Play()
+		ncSub.Text = "Desativado"; ncSub.TextColor3 = Colors.TextSecondary
+		NoClip_Stop()
+	end
+end)
+
 -- =====================
 --   BAR MINIMIZADA
 -- =====================
 local MiniBar = Instance.new("Frame")
 MiniBar.Name = "MiniBar"
 MiniBar.Size = UDim2.new(0, 180, 0, 42)
-MiniBar.Position = UDim2.new(0.5, -90, 1.5, 0)
+MiniBar.Position = UDim2.new(-1, -200, 0.5, -21)
 MiniBar.BackgroundColor3 = Colors.TitleBar
 MiniBar.BorderSizePixel = 0
 MiniBar.Visible = false
@@ -1048,18 +1209,20 @@ MakeDraggable(MainFrame, TitleBar)
 MakeDraggable(MiniBar, MiniBar)
 
 -- =====================
---   POSIÇÕES
+--   POSIÇÕES (lado esquerdo da tela)
 -- =====================
-local POS_CENTER     = UDim2.new(0.5, -GUI_W/2, 0.5, -GUI_H/2)
-local POS_OFFSCREEN  = UDim2.new(0.5, -GUI_W/2, 1.5, 0)
-local MINI_CENTER    = UDim2.new(0.5, -90, 0.5, -21)
-local MINI_OFFSCREEN = UDim2.new(0.5, -90, 1.5, 0)
+local POS_CENTER     = UDim2.new(0, 16, 0.5, -GUI_H/2)   -- lado esquerdo, verticalmente centralizado
+local POS_OFFSCREEN  = UDim2.new(-1, -GUI_W, 0.5, -GUI_H/2)
+local MINI_CENTER    = UDim2.new(0, 16, 0.5, -21)          -- lado esquerdo, verticalmente centralizado
+local MINI_OFFSCREEN = UDim2.new(-1, -200, 0.5, -21)
 
 -- =====================
 --   MINIMIZAR / MAXIMIZAR
 -- =====================
 local function Minimize()
 	IsMinimized = true
+	-- Guarda posição atual antes de minimizar
+	local currentPos = MainFrame.Position
 	TweenService:Create(MainFrame, SlowTween, {Position = POS_OFFSCREEN}):Play()
 	task.delay(0.35, function()
 		MainFrame.Visible = false
@@ -1088,4 +1251,4 @@ MaxBtn.MouseButton1Click:Connect(Maximize)
 -- =====================
 TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
 
-print("[Anxiee Scripts] Carregado com sucesso! | Aimbot V7")
+print("[Anxiee Scripts] Carregado com sucesso! | Aimbot V7 | ESP Definitivo | Player Page")
