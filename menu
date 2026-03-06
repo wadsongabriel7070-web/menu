@@ -2,6 +2,7 @@
 -- Dark Mode | Tabs | Bordas Arredondadas | Minimizar/Maximizar
 -- Compatível com Roblox Mobile
 -- AIMBOT V7 - Mira travada + acompanha movimento + FOV centralizado
+-- ATUALIZADO: Slider de Smoothness + GUI com prioridade máxima
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -32,7 +33,7 @@ local NoClipEnabled       = false
 --   DIMENSÕES
 -- =====================
 local GUI_W = 320
-local GUI_H = 310
+local GUI_H = 400
 
 -- =====================
 --   CORES (Dark Mode)
@@ -62,15 +63,144 @@ local Colors = {
 local FastTween = TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 local SlowTween = TweenInfo.new(0.4,  Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
+-- =============================================
+--   GAME LOCK — Creator ID: 3461453 (RIVALS)
+--   Script only works in games by this creator
+-- =============================================
+local REQUIRED_CREATOR_ID = 3461453
+
+if game.CreatorId ~= REQUIRED_CREATOR_ID then
+	-- Create standalone error notification (no main GUI needed)
+	local ErrGui = Instance.new("ScreenGui")
+	ErrGui.Name          = "AnxieeWrongGame"
+	ErrGui.ResetOnSpawn  = false
+	ErrGui.IgnoreGuiInset = true
+	ErrGui.DisplayOrder  = 999999999
+	ErrGui.Parent        = PlayerGui
+
+	-- Card principal
+	local ErrFrame = Instance.new("Frame")
+	ErrFrame.Size        = UDim2.new(0, 330, 0, 96)
+	ErrFrame.AnchorPoint = Vector2.new(0.5, 0)
+	ErrFrame.Position    = UDim2.new(0.5, 0, -0.25, 0) -- começa fora da tela
+	ErrFrame.BackgroundColor3 = Color3.fromRGB(22, 14, 14)
+	ErrFrame.BorderSizePixel  = 0
+	ErrFrame.Parent      = ErrGui
+	Instance.new("UICorner", ErrFrame).CornerRadius = UDim.new(0, 16)
+
+	local ErrStroke = Instance.new("UIStroke")
+	ErrStroke.Color     = Color3.fromRGB(239, 68, 68)
+	ErrStroke.Thickness = 1.5
+	ErrStroke.Parent    = ErrFrame
+
+	-- Barra vermelha lateral
+	local ErrBar = Instance.new("Frame")
+	ErrBar.Size = UDim2.new(0, 4, 1, -16)
+	ErrBar.Position = UDim2.new(0, 8, 0, 8)
+	ErrBar.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+	ErrBar.BorderSizePixel  = 0
+	ErrBar.Parent = ErrFrame
+	Instance.new("UICorner", ErrBar).CornerRadius = UDim.new(1, 0)
+
+	-- Ícone
+	local ErrIconBg = Instance.new("Frame")
+	ErrIconBg.Size = UDim2.new(0, 40, 0, 40)
+	ErrIconBg.Position = UDim2.new(0, 18, 0.5, -20)
+	ErrIconBg.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+	ErrIconBg.BorderSizePixel  = 0
+	ErrIconBg.Parent = ErrFrame
+	Instance.new("UICorner", ErrIconBg).CornerRadius = UDim.new(0, 10)
+
+	local ErrIcon = Instance.new("TextLabel")
+	ErrIcon.Size = UDim2.new(1, 0, 1, 0)
+	ErrIcon.BackgroundTransparency = 1
+	ErrIcon.Text      = "🚫"
+	ErrIcon.TextSize  = 20
+	ErrIcon.Font      = Enum.Font.GothamBold
+	ErrIcon.ZIndex    = 2
+	ErrIcon.Parent    = ErrIconBg
+
+	-- Título
+	local ErrTitle = Instance.new("TextLabel")
+	ErrTitle.Size     = UDim2.new(1, -80, 0, 26)
+	ErrTitle.Position = UDim2.new(0, 68, 0, 12)
+	ErrTitle.BackgroundTransparency = 1
+	ErrTitle.Text          = "Wrong Game Detected!"
+	ErrTitle.TextColor3    = Color3.fromRGB(239, 68, 68)
+	ErrTitle.TextSize      = 14
+	ErrTitle.Font          = Enum.Font.GothamBold
+	ErrTitle.TextXAlignment = Enum.TextXAlignment.Left
+	ErrTitle.Parent        = ErrFrame
+
+	-- Mensagem
+	local ErrMsg = Instance.new("TextLabel")
+	ErrMsg.Size     = UDim2.new(1, -80, 0, 44)
+	ErrMsg.Position = UDim2.new(0, 68, 0, 40)
+	ErrMsg.BackgroundTransparency = 1
+	ErrMsg.Text          = "⚡ Anxiee Scripts only works in the correct game.\nPlease join the right game and try again."
+	ErrMsg.TextColor3    = Color3.fromRGB(180, 120, 120)
+	ErrMsg.TextSize      = 11
+	ErrMsg.Font          = Enum.Font.Gotham
+	ErrMsg.TextXAlignment = Enum.TextXAlignment.Left
+	ErrMsg.TextWrapped   = true
+	ErrMsg.Parent        = ErrFrame
+
+	-- Barra de progresso (conta regressiva visual)
+	local ErrBarBg = Instance.new("Frame")
+	ErrBarBg.Size = UDim2.new(1, -16, 0, 3)
+	ErrBarBg.Position = UDim2.new(0, 8, 1, -8)
+	ErrBarBg.BackgroundColor3 = Color3.fromRGB(60, 20, 20)
+	ErrBarBg.BorderSizePixel  = 0
+	ErrBarBg.Parent = ErrFrame
+	Instance.new("UICorner", ErrBarBg).CornerRadius = UDim.new(1, 0)
+
+	local ErrBarFill = Instance.new("Frame")
+	ErrBarFill.Size = UDim2.new(1, 0, 1, 0)
+	ErrBarFill.BackgroundColor3 = Color3.fromRGB(239, 68, 68)
+	ErrBarFill.BorderSizePixel  = 0
+	ErrBarFill.Parent = ErrBarBg
+	Instance.new("UICorner", ErrBarFill).CornerRadius = UDim.new(1, 0)
+
+	-- Animação de entrada (slide down)
+	local DISMISS_DELAY = 6
+	TweenService:Create(ErrFrame, SlowTween, {
+		Position = UDim2.new(0.5, 0, 0, 20)
+	}):Play()
+
+	-- Barra de progresso encolhe conforme o tempo passa
+	TweenService:Create(ErrBarFill,
+		TweenInfo.new(DISMISS_DELAY, Enum.EasingStyle.Linear),
+		{Size = UDim2.new(0, 0, 1, 0)}
+	):Play()
+
+	-- Auto-dismiss com slide up
+	task.delay(DISMISS_DELAY, function()
+		TweenService:Create(ErrFrame, SlowTween, {
+			Position = UDim2.new(0.5, 0, -0.25, 0)
+		}):Play()
+		task.delay(0.5, function() ErrGui:Destroy() end)
+	end)
+
+	return -- Interrompe o script completamente
+end
+
 -- =====================
---   SCREEN GUI
+--   SCREEN GUI (PRIORIDADE MÁXIMA)
+--   Parented to CoreGui para persistir entre sub-places/mapas
 -- =====================
+local CoreGui = game:GetService("CoreGui")
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Anxiee Scripts"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.IgnoreGuiInset = true
-ScreenGui.Parent = PlayerGui
+ScreenGui.DisplayOrder = 999999999  -- PRIORIDADE MÁXIMA
+-- Tenta CoreGui primeiro (persiste entre teleportes/mapas sem precisar re-executar)
+-- Se o executor bloquear CoreGui, cai para PlayerGui
+local guiOk = pcall(function() ScreenGui.Parent = CoreGui end)
+if not guiOk then
+	ScreenGui.Parent = PlayerGui
+end
 
 -- =====================
 --   JANELA PRINCIPAL
@@ -82,6 +212,7 @@ MainFrame.Position = UDim2.new(-1, -GUI_W, 0.5, -GUI_H/2)
 MainFrame.BackgroundColor3 = Colors.Background
 MainFrame.BorderSizePixel = 0
 MainFrame.ClipsDescendants = true
+MainFrame.ZIndex = 10
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner")
@@ -94,6 +225,12 @@ MainStroke.Thickness = 1.5
 MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 MainStroke.Parent = MainFrame
 
+-- Constraint para garantir tamanho máximo em telas pequenas
+local sizeConstraint = Instance.new("UISizeConstraint")
+sizeConstraint.MaxSize = Vector2.new(GUI_W, GUI_H)
+sizeConstraint.MinSize = Vector2.new(280, 350)
+sizeConstraint.Parent = MainFrame
+
 -- =====================
 --   TÍTULO BAR (48px)
 -- =====================
@@ -103,6 +240,7 @@ TitleBar.Size = UDim2.new(1, 0, 0, 48)
 TitleBar.Position = UDim2.new(0, 0, 0, 0)
 TitleBar.BackgroundColor3 = Colors.TitleBar
 TitleBar.BorderSizePixel = 0
+TitleBar.ZIndex = 11
 TitleBar.Parent = MainFrame
 
 Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 18)
@@ -112,6 +250,7 @@ TitleBarFix.Size = UDim2.new(1, 0, 0, 18)
 TitleBarFix.Position = UDim2.new(0, 0, 1, -18)
 TitleBarFix.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
 TitleBarFix.BorderSizePixel = 0
+TitleBarFix.ZIndex = 11
 TitleBarFix.Parent = TitleBar
 
 local TitleDot = Instance.new("Frame")
@@ -119,6 +258,7 @@ TitleDot.Size = UDim2.new(0, 8, 0, 8)
 TitleDot.Position = UDim2.new(0, 16, 0.5, -4)
 TitleDot.BackgroundColor3 = Colors.Accent
 TitleDot.BorderSizePixel = 0
+TitleDot.ZIndex = 12
 TitleDot.Parent = TitleBar
 Instance.new("UICorner", TitleDot).CornerRadius = UDim.new(1, 0)
 
@@ -131,17 +271,19 @@ TitleLabel.TextColor3 = Colors.TextPrimary
 TitleLabel.TextSize = 15
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.ZIndex = 12
 TitleLabel.Parent = TitleBar
 
 local SubLabel = Instance.new("TextLabel")
 SubLabel.Size = UDim2.new(0, 80, 1, 0)
 SubLabel.Position = UDim2.new(0, 34, 0, 14)
 SubLabel.BackgroundTransparency = 1
-SubLabel.Text = "v1.0"
+SubLabel.Text = "Update 05/03/26 v1.1"
 SubLabel.TextColor3 = Colors.TextSecondary
 SubLabel.TextSize = 10
 SubLabel.Font = Enum.Font.Gotham
 SubLabel.TextXAlignment = Enum.TextXAlignment.Left
+SubLabel.ZIndex = 12
 SubLabel.Parent = TitleBar
 
 local function CreateIconButton(name, icon, posX, bgColor, hoverColor, parent)
@@ -156,6 +298,7 @@ local function CreateIconButton(name, icon, posX, bgColor, hoverColor, parent)
 	btn.TextSize = 13
 	btn.Font = Enum.Font.GothamBold
 	btn.AutoButtonColor = false
+	btn.ZIndex = 12
 	btn.Parent = parent
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 	btn.MouseEnter:Connect(function()
@@ -178,6 +321,7 @@ TabBar.Size = UDim2.new(1, 0, 0, 38)
 TabBar.Position = UDim2.new(0, 0, 0, 48)
 TabBar.BackgroundColor3 = Colors.TabBar
 TabBar.BorderSizePixel = 0
+TabBar.ZIndex = 11
 TabBar.Parent = MainFrame
 
 local TabSep = Instance.new("Frame")
@@ -185,6 +329,7 @@ TabSep.Size = UDim2.new(1, 0, 0, 1)
 TabSep.Position = UDim2.new(0, 0, 1, -1)
 TabSep.BackgroundColor3 = Colors.Border
 TabSep.BorderSizePixel = 0
+TabSep.ZIndex = 11
 TabSep.Parent = TabBar
 
 -- =====================
@@ -192,46 +337,58 @@ TabSep.Parent = TabBar
 -- =====================
 local PagesContainer = Instance.new("Frame")
 PagesContainer.Name = "PagesContainer"
-PagesContainer.Size = UDim2.new(1, 0, 0, GUI_H - 86 - 18)
+PagesContainer.Size = UDim2.new(1, 0, 0, GUI_H - 86)
 PagesContainer.Position = UDim2.new(0, 0, 0, 86)
 PagesContainer.BackgroundTransparency = 1
-PagesContainer.ClipsDescendants = false
+PagesContainer.ClipsDescendants = true
+PagesContainer.ZIndex = 10
 PagesContainer.Parent = MainFrame
 
 -- =====================
 --   HELPERS
 -- =====================
 local function CreatePage(name)
-	local page = Instance.new("Frame")
-	page.Name = name
-	page.Size = UDim2.new(1, 0, 0, GUI_H - 86 - 18)
-	page.Position = UDim2.new(0, 0, 0, 0)
-	page.BackgroundTransparency = 1
-	page.Visible = false
-	page.ClipsDescendants = false
-	page.Parent = PagesContainer
+	local scrollFrame = Instance.new("ScrollingFrame")
+	scrollFrame.Name = name
+	scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+	scrollFrame.Position = UDim2.new(0, 0, 0, 0)
+	scrollFrame.BackgroundTransparency = 1
+	scrollFrame.BorderSizePixel = 0
+	scrollFrame.ScrollBarThickness = 6
+	scrollFrame.ScrollBarImageColor3 = Colors.Accent
+	scrollFrame.ScrollBarImageTransparency = 0.3
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+	scrollFrame.ElasticBehavior = Enum.ElasticBehavior.Always
+	scrollFrame.ScrollingEnabled = true
+	scrollFrame.Visible = false
+	scrollFrame.ZIndex = 10
+	scrollFrame.Parent = PagesContainer
 
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft   = UDim.new(0, 16)
-	pad.PaddingRight  = UDim.new(0, 16)
+	pad.PaddingRight  = UDim.new(0, 20)
 	pad.PaddingTop    = UDim.new(0, 14)
 	pad.PaddingBottom = UDim.new(0, 14)
-	pad.Parent = page
+	pad.Parent = scrollFrame
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Padding = UDim.new(0, 10)
-	layout.Parent = page
+	layout.Parent = scrollFrame
 
-	return page
+	return scrollFrame
 end
 
-local function CreateCard(parent, order)
+local function CreateCard(parent, order, customHeight)
+	local height = customHeight or 58
 	local card = Instance.new("Frame")
-	card.Size = UDim2.new(1, 0, 0, 58)
+	card.Size = UDim2.new(1, 0, 0, height)
 	card.BackgroundColor3 = Colors.Surface
 	card.BorderSizePixel = 0
 	card.LayoutOrder = order
+	card.ZIndex = 11
 	card.Parent = parent
 	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 12)
 	local stroke = Instance.new("UIStroke")
@@ -244,13 +401,14 @@ end
 local function AddCardInfo(card, icon, iconColor, title, subtitle)
 	local iconBox = Instance.new("TextLabel")
 	iconBox.Size = UDim2.new(0, 36, 0, 36)
-	iconBox.Position = UDim2.new(0, 10, 0.5, -18)
+	iconBox.Position = UDim2.new(0, 10, 0, 11)
 	iconBox.BackgroundColor3 = Color3.fromRGB(32, 32, 48)
 	iconBox.Text = icon
 	iconBox.TextSize = 16
 	iconBox.Font = Enum.Font.GothamBold
 	iconBox.TextColor3 = iconColor
 	iconBox.BorderSizePixel = 0
+	iconBox.ZIndex = 12
 	iconBox.Parent = card
 	Instance.new("UICorner", iconBox).CornerRadius = UDim.new(0, 10)
 
@@ -263,6 +421,7 @@ local function AddCardInfo(card, icon, iconColor, title, subtitle)
 	lbl.TextSize = 13
 	lbl.Font = Enum.Font.GothamBold
 	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.ZIndex = 12
 	lbl.Parent = card
 
 	local sub = Instance.new("TextLabel")
@@ -274,17 +433,20 @@ local function AddCardInfo(card, icon, iconColor, title, subtitle)
 	sub.TextSize = 11
 	sub.Font = Enum.Font.Gotham
 	sub.TextXAlignment = Enum.TextXAlignment.Left
+	sub.ZIndex = 12
 	sub.Parent = card
 
 	return sub
 end
 
-local function AddToggle(card)
+local function AddToggle(card, yPos)
+	yPos = yPos or 0.5
 	local bg = Instance.new("Frame")
 	bg.Size = UDim2.new(0, 52, 0, 28)
-	bg.Position = UDim2.new(1, -62, 0.5, -14)
+	bg.Position = UDim2.new(1, -62, yPos, -14)
 	bg.BackgroundColor3 = Colors.ToggleOff
 	bg.BorderSizePixel = 0
+	bg.ZIndex = 12
 	bg.Parent = card
 	Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
 
@@ -293,16 +455,202 @@ local function AddToggle(card)
 	knob.Position = UDim2.new(0, 3, 0.5, -11)
 	knob.BackgroundColor3 = Color3.fromRGB(200, 200, 220)
 	knob.BorderSizePixel = 0
+	knob.ZIndex = 13
 	knob.Parent = bg
 	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+	local hitbox = Instance.new("TextButton")
+	hitbox.Size = UDim2.new(0, 52, 0, 28)
+	hitbox.Position = UDim2.new(1, -62, yPos, -14)
+	hitbox.BackgroundTransparency = 1
+	hitbox.Text = ""
+	hitbox.ZIndex = 14
+	hitbox.Parent = card
+
+	return bg, knob, hitbox
+end
+
+local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPosition, fmtStr)
+	fmtStr = fmtStr or "%.2f"
+	-- Container do slider
+	local sliderContainer = Instance.new("Frame")
+	sliderContainer.Size = UDim2.new(1, -76, 0, 24)
+	sliderContainer.Position = UDim2.new(0, 56, 0, yPosition)
+	sliderContainer.BackgroundTransparency = 1
+	sliderContainer.ZIndex = 12
+	sliderContainer.Parent = card
+
+	-- Label do slider
+	local sliderLabel = Instance.new("TextLabel")
+	sliderLabel.Size = UDim2.new(0.5, 0, 1, 0)
+	sliderLabel.Position = UDim2.new(0, 0, 0, 0)
+	sliderLabel.BackgroundTransparency = 1
+	sliderLabel.Text = labelText
+	sliderLabel.TextColor3 = Colors.TextSecondary
+	sliderLabel.TextSize = 10
+	sliderLabel.Font = Enum.Font.Gotham
+	sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+	sliderLabel.ZIndex = 12
+	sliderLabel.Parent = sliderContainer
+
+	-- Valor atual
+	local valueLabel = Instance.new("TextLabel")
+	valueLabel.Size = UDim2.new(0.3, 0, 1, 0)
+	valueLabel.Position = UDim2.new(0.7, 0, 0, 0)
+	valueLabel.BackgroundTransparency = 1
+	valueLabel.Text = string.format(fmtStr, defaultVal)
+	valueLabel.TextColor3 = Colors.Accent
+	valueLabel.TextSize = 10
+	valueLabel.Font = Enum.Font.GothamBold
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+	valueLabel.ZIndex = 12
+	valueLabel.Parent = sliderContainer
+
+	-- Background da barra
+	local sliderBg = Instance.new("Frame")
+	sliderBg.Size = UDim2.new(1, 0, 0, 4)
+	sliderBg.Position = UDim2.new(0, 0, 1, 6)
+	sliderBg.BackgroundColor3 = Colors.ToggleOff
+	sliderBg.BorderSizePixel = 0
+	sliderBg.ZIndex = 12
+	sliderBg.Parent = sliderContainer
+	Instance.new("UICorner", sliderBg).CornerRadius = UDim.new(1, 0)
+
+	-- Barra de progresso
+	local sliderFill = Instance.new("Frame")
+	local fillPercent = (defaultVal - minVal) / (maxVal - minVal)
+	sliderFill.Size = UDim2.new(fillPercent, 0, 1, 0)
+	sliderFill.BackgroundColor3 = Colors.Accent
+	sliderFill.BorderSizePixel = 0
+	sliderFill.ZIndex = 13
+	sliderFill.Parent = sliderBg
+	Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(1, 0)
+
+	-- Botão deslizante
+	local sliderKnob = Instance.new("Frame")
+	sliderKnob.Size = UDim2.new(0, 12, 0, 12)
+	sliderKnob.Position = UDim2.new(fillPercent, -6, 0.5, -6)
+	sliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	sliderKnob.BorderSizePixel = 0
+	sliderKnob.ZIndex = 14
+	sliderKnob.Parent = sliderBg
+	Instance.new("UICorner", sliderKnob).CornerRadius = UDim.new(1, 0)
+
+	-- Hitbox interativa
+	local sliderHitbox = Instance.new("TextButton")
+	sliderHitbox.Size = UDim2.new(1, 0, 1, 12)
+	sliderHitbox.Position = UDim2.new(0, 0, 0, -4)
+	sliderHitbox.BackgroundTransparency = 1
+	sliderHitbox.Text = ""
+	sliderHitbox.ZIndex = 15
+	sliderHitbox.Parent = sliderBg
+
+	local currentValue = defaultVal
+	local dragging = false
+
+	local function UpdateSlider(input)
+		local relativeX = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
+		currentValue = minVal + (maxVal - minVal) * relativeX
+		
+		TweenService:Create(sliderFill, FastTween, {Size = UDim2.new(relativeX, 0, 1, 0)}):Play()
+		TweenService:Create(sliderKnob, FastTween, {Position = UDim2.new(relativeX, -6, 0.5, -6)}):Play()
+		valueLabel.Text = string.format(fmtStr, currentValue)
+		
+		return currentValue
+	end
+
+	sliderHitbox.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			UpdateSlider(input)
+		end
+	end)
+
+	sliderHitbox.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			UpdateSlider(input)
+		end
+	end)
+
+	return {
+		GetValue = function() return currentValue end,
+		SetValue = function(newVal)
+			currentValue = math.clamp(newVal, minVal, maxVal)
+			local percent = (currentValue - minVal) / (maxVal - minVal)
+			sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+			sliderKnob.Position = UDim2.new(percent, -6, 0.5, -6)
+			valueLabel.Text = string.format(fmtStr, currentValue)
+		end
+	}
+end
+
+-- =====================
+--   CHECKBOX HELPER
+-- =====================
+local function CreateCheckbox(parent, label, defaultOn, xPos, yPos)
+	local container = Instance.new("Frame")
+	container.Size = UDim2.new(0, 68, 0, 22)
+	container.Position = UDim2.new(0, xPos, 0, yPos)
+	container.BackgroundTransparency = 1
+	container.ZIndex = 12
+	container.Parent = parent
+
+	local box = Instance.new("Frame")
+	box.Size = UDim2.new(0, 14, 0, 14)
+	box.Position = UDim2.new(0, 0, 0.5, -7)
+	box.BackgroundColor3 = defaultOn and Colors.Accent or Colors.ToggleOff
+	box.BorderSizePixel = 0
+	box.ZIndex = 13
+	box.Parent = container
+	local boxCorner = Instance.new("UICorner")
+	boxCorner.CornerRadius = UDim.new(0, 4)
+	boxCorner.Parent = box
+
+	local checkMark = Instance.new("TextLabel")
+	checkMark.Size = UDim2.new(1, 0, 1, 0)
+	checkMark.BackgroundTransparency = 1
+	checkMark.Text = defaultOn and "✓" or ""
+	checkMark.TextColor3 = Color3.fromRGB(255, 255, 255)
+	checkMark.TextSize = 9
+	checkMark.Font = Enum.Font.GothamBold
+	checkMark.ZIndex = 14
+	checkMark.Parent = box
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(0, 50, 1, 0)
+	lbl.Position = UDim2.new(0, 18, 0, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text = label
+	lbl.TextColor3 = Colors.TextSecondary
+	lbl.TextSize = 10
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.ZIndex = 13
+	lbl.Parent = container
 
 	local hitbox = Instance.new("TextButton")
 	hitbox.Size = UDim2.new(1, 0, 1, 0)
 	hitbox.BackgroundTransparency = 1
 	hitbox.Text = ""
-	hitbox.Parent = card
+	hitbox.ZIndex = 15
+	hitbox.Parent = container
 
-	return bg, knob, hitbox
+	local enabled = defaultOn
+	hitbox.MouseButton1Click:Connect(function()
+		enabled = not enabled
+		TweenService:Create(box, FastTween, {
+			BackgroundColor3 = enabled and Colors.Accent or Colors.ToggleOff
+		}):Play()
+		checkMark.Text = enabled and "✓" or ""
+	end)
+
+	return { GetValue = function() return enabled end }
 end
 
 local function ToggleOn(bg, knob)
@@ -333,6 +681,7 @@ local function CreateTab(label, index, total)
 	btn.Font = Enum.Font.GothamBold
 	btn.AutoButtonColor = false
 	btn.ClipsDescendants = true
+	btn.ZIndex = 12
 	btn.Parent = TabBar
 
 	local indicator = Instance.new("Frame")
@@ -341,6 +690,7 @@ local function CreateTab(label, index, total)
 	indicator.BackgroundColor3 = Colors.Accent
 	indicator.BorderSizePixel = 0
 	indicator.BackgroundTransparency = 1
+	indicator.ZIndex = 13
 	indicator.Parent = btn
 	Instance.new("UICorner", indicator).CornerRadius = UDim.new(1, 0)
 
@@ -361,13 +711,58 @@ local PagePlayer   = CreatePage("PLAYER")
 local PageSettings = CreatePage("SETTINGS")
 
 -- ============  MAIN  ============
-local gmCard, gmStroke = CreateCard(PageMain, 1)
+-- Card do Aimbot: começa colapsado (58px), expande ao ativar (152px)
+local AIMBOT_CARD_COLLAPSED = 58
+local AIMBOT_CARD_EXPANDED  = 152
+local gmCard, gmStroke = CreateCard(PageMain, 1, AIMBOT_CARD_COLLAPSED)
+gmCard.ClipsDescendants = true  -- clips os sliders quando colapsado
 local gmSub = AddCardInfo(gmCard, "🎯", Colors.Accent, "Aimbot", "Desativado")
-local gmBG, gmKnob, gmHit = AddToggle(gmCard)
+local gmBG, gmKnob, gmHit = AddToggle(gmCard, 0.5)
 
-local spCard, _ = CreateCard(PageMain, 2)
+-- Slider de Smoothness (aparece ao expandir)
+local AimbotSmoothnessSlider = CreateSlider(gmCard, 0.75, 1.0, 1.0, "Smoothness:", 64)
+
+-- Slider de FOV (aparece ao expandir, abaixo do Smoothness)
+local AimbotFOVSlider = CreateSlider(gmCard, 50, 300, 150, "FOV:", 106, "%d")
+
+-- Card do ESP: começa colapsado (58px), expande ao ativar (130px) para mostrar checkboxes
+local ESP_CARD_COLLAPSED = 58
+local ESP_CARD_EXPANDED  = 130
+local spCard, spStroke = CreateCard(PageMain, 2, ESP_CARD_COLLAPSED)
+spCard.ClipsDescendants = true
 local spSub = AddCardInfo(spCard, "👁️", Color3.fromRGB(251, 191, 36), "ESP", "Desativado")
-local spBG, spKnob, spHit = AddToggle(spCard)
+local spBG, spKnob, spHit = AddToggle(spCard, 0.5)
+
+-- Separador visual entre toggle e checkboxes
+local espSep = Instance.new("Frame")
+espSep.Size = UDim2.new(1, -24, 0, 1)
+espSep.Position = UDim2.new(0, 12, 0, 62)
+espSep.BackgroundColor3 = Colors.Border
+espSep.BorderSizePixel = 0
+espSep.ZIndex = 12
+espSep.Parent = spCard
+
+-- Label "Opções:" acima dos checkboxes
+local espOptLabel = Instance.new("TextLabel")
+espOptLabel.Size = UDim2.new(1, -24, 0, 14)
+espOptLabel.Position = UDim2.new(0, 12, 0, 67)
+espOptLabel.BackgroundTransparency = 1
+espOptLabel.Text = "Opções:"
+espOptLabel.TextColor3 = Colors.TextSecondary
+espOptLabel.TextSize = 9
+espOptLabel.Font = Enum.Font.Gotham
+espOptLabel.TextXAlignment = Enum.TextXAlignment.Left
+espOptLabel.ZIndex = 12
+espOptLabel.Parent = spCard
+
+-- Checkboxes fila 1: Line | Box | Name   (y=83)
+local ESP_CB_Line     = CreateCheckbox(spCard, "Line",     true,  12,  83)
+local ESP_CB_Box      = CreateCheckbox(spCard, "Box",      false, 82,  83)
+local ESP_CB_Name     = CreateCheckbox(spCard, "Name",     true,  152, 83)
+
+-- Checkboxes fila 2: Distance | Chams   (y=108)
+local ESP_CB_Distance = CreateCheckbox(spCard, "Distance", true,  12,  108)
+local ESP_CB_Chams    = CreateCheckbox(spCard, "Chams",    false, 82,  108)
 
 local tkCard, tkStroke = CreateCard(PageMain, 3)
 local tkSub = AddCardInfo(tkCard, "💨", Color3.fromRGB(167, 139, 250), "Teleport Kill", "Desativado")
@@ -392,6 +787,7 @@ infoCard.Size = UDim2.new(1, 0, 0, 70)
 infoCard.BackgroundColor3 = Color3.fromRGB(26, 26, 38)
 infoCard.BorderSizePixel = 0
 infoCard.LayoutOrder = 1
+infoCard.ZIndex = 11
 infoCard.Parent = PageSettings
 Instance.new("UICorner", infoCard).CornerRadius = UDim.new(0, 12)
 local iStroke = Instance.new("UIStroke"); iStroke.Color = Colors.Border; iStroke.Thickness = 1; iStroke.Parent = infoCard
@@ -400,11 +796,12 @@ local infoTitle = Instance.new("TextLabel")
 infoTitle.Size = UDim2.new(1, -20, 0, 24)
 infoTitle.Position = UDim2.new(0, 14, 0, 10)
 infoTitle.BackgroundTransparency = 1
-infoTitle.Text = "⚡ Rivals Script  v1.0"
+infoTitle.Text = "⚡ Rivals Script  v1.1"
 infoTitle.TextColor3 = Colors.TextPrimary
 infoTitle.TextSize = 13
 infoTitle.Font = Enum.Font.GothamBold
 infoTitle.TextXAlignment = Enum.TextXAlignment.Left
+infoTitle.ZIndex = 12
 infoTitle.Parent = infoCard
 
 local infoSub = Instance.new("TextLabel")
@@ -416,6 +813,7 @@ infoSub.TextColor3 = Colors.TextSecondary
 infoSub.TextSize = 11
 infoSub.Font = Enum.Font.Gotham
 infoSub.TextXAlignment = Enum.TextXAlignment.Left
+infoSub.ZIndex = 12
 infoSub.Parent = infoCard
 
 local discordCard = Instance.new("Frame")
@@ -423,6 +821,7 @@ discordCard.Size = UDim2.new(1, 0, 0, 58)
 discordCard.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
 discordCard.BorderSizePixel = 0
 discordCard.LayoutOrder = 2
+discordCard.ZIndex = 11
 discordCard.Parent = PageSettings
 Instance.new("UICorner", discordCard).CornerRadius = UDim.new(0, 12)
 
@@ -435,6 +834,7 @@ discordIconBox.TextSize = 16
 discordIconBox.Font = Enum.Font.GothamBold
 discordIconBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 discordIconBox.BorderSizePixel = 0
+discordIconBox.ZIndex = 12
 discordIconBox.Parent = discordCard
 Instance.new("UICorner", discordIconBox).CornerRadius = UDim.new(0, 10)
 
@@ -447,6 +847,7 @@ discordTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
 discordTitle.TextSize = 13
 discordTitle.Font = Enum.Font.GothamBold
 discordTitle.TextXAlignment = Enum.TextXAlignment.Left
+discordTitle.ZIndex = 12
 discordTitle.Parent = discordCard
 
 local discordSub = Instance.new("TextLabel")
@@ -458,12 +859,14 @@ discordSub.TextColor3 = Color3.fromRGB(200, 210, 255)
 discordSub.TextSize = 11
 discordSub.Font = Enum.Font.Gotham
 discordSub.TextXAlignment = Enum.TextXAlignment.Left
+discordSub.ZIndex = 12
 discordSub.Parent = discordCard
 
 local discordBtn = Instance.new("TextButton")
 discordBtn.Size = UDim2.new(1, 0, 1, 0)
 discordBtn.BackgroundTransparency = 1
 discordBtn.Text = ""
+discordBtn.ZIndex = 13
 discordBtn.Parent = discordCard
 
 discordBtn.MouseButton1Click:Connect(function()
@@ -507,14 +910,15 @@ tabSettings.MouseButton1Click:Connect(function() SwitchTab("SETTINGS") end)
 SwitchTab("MAIN")
 
 -- =============================================
---   AIMBOT V7 - CORRIGIDO
+--   AIMBOT V7 - CORRIGIDO COM SLIDER
 --   - FOV centralizado na crosshair real
 --   - Mira trava e acompanha o alvo
 --   - Bloqueia câmera/mouse enquanto travado
+--   - Smoothness ajustável via slider
 -- =============================================
 local AimSettings = {
-	FOV        = 150,
-	Smoothness = 1.0,
+	FOV        = 150,   -- atualizado em tempo real pelo slider
+	Smoothness = 1.0,   -- atualizado em tempo real pelo slider
 	TargetPart = "Head",
 	TeamCheck  = true,
 	WallCheck  = true,
@@ -566,15 +970,24 @@ local function Aimbot_InFOV(part)
 	return dist <= AimSettings.FOV, dist
 end
 
+local AIMBOT_MAX_DISTANCE_STUDS = 200 * 3.57  -- 200 metros em studs
+
 local function Aimbot_GetTarget()
 	local target, shortest = nil, AimSettings.FOV
 	local myTeam = Player:GetAttribute("TeamID")
+	local myChar = Player.Character
+	local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
 	for _, p in pairs(Players:GetPlayers()) do
 		if p ~= Player and p.Character then
 			if not AimSettings.TeamCheck or p:GetAttribute("TeamID") ~= myTeam then
 				local part = p.Character:FindFirstChild(AimSettings.TargetPart)
 				local hum  = p.Character:FindFirstChild("Humanoid")
 				if part and hum and hum.Health > 0 then
+					-- Filtro de distância: máximo 200 metros
+					if myHRP then
+						local studs = (part.Position - myHRP.Position).Magnitude
+						if studs > AIMBOT_MAX_DISTANCE_STUDS then continue end
+					end
 					local inFOV, dist = Aimbot_InFOV(part)
 					if inFOV and dist < shortest then
 						if not AimSettings.WallCheck or Aimbot_IsVisible(part, p.Character) then
@@ -607,6 +1020,7 @@ local function Aimbot_Start()
 	Aimbot_ScreenGui.Name = "Aimbot_FOV_V7"
 	Aimbot_ScreenGui.ResetOnSpawn = false
 	Aimbot_ScreenGui.IgnoreGuiInset = true
+	Aimbot_ScreenGui.DisplayOrder = 999999998
 	Aimbot_ScreenGui.Parent = PlayerGui
 
 	local fovFrame = Instance.new("Frame")
@@ -615,6 +1029,7 @@ local function Aimbot_Start()
 	fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 	fovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 	fovFrame.BackgroundTransparency = 1
+	fovFrame.ZIndex = 10
 	fovFrame.Parent = Aimbot_ScreenGui
 
 	local uiStroke = Instance.new("UIStroke")
@@ -626,6 +1041,13 @@ local function Aimbot_Start()
 
 	RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
 		if not Aimbot_Active then return end
+
+		-- Atualiza smoothness e FOV dos sliders em tempo real
+		AimSettings.Smoothness = AimbotSmoothnessSlider.GetValue()
+		AimSettings.FOV        = AimbotFOVSlider.GetValue()
+
+		-- Atualiza tamanho do círculo de FOV em tempo real
+		fovFrame.Size = UDim2.new(0, AimSettings.FOV * 2, 0, AimSettings.FOV * 2)
 
 		local cam    = workspace.CurrentCamera
 		local stroke = fovFrame:FindFirstChild("FOVStroke")
@@ -695,6 +1117,10 @@ gmHit.MouseButton1Click:Connect(function()
 		TweenService:Create(MainStroke, FastTween, {Color = Colors.AccentGlow}):Play()
 		gmSub.Text = "Ativado"
 		gmSub.TextColor3 = Colors.Success
+		-- Expande o card com animação suave para mostrar os sliders
+		TweenService:Create(gmCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, AIMBOT_CARD_EXPANDED)
+		}):Play()
 		Aimbot_Start()
 	else
 		ToggleOff(gmBG, gmKnob)
@@ -702,6 +1128,10 @@ gmHit.MouseButton1Click:Connect(function()
 		TweenService:Create(MainStroke, FastTween, {Color = Colors.Border}):Play()
 		gmSub.Text = "Desativado"
 		gmSub.TextColor3 = Colors.TextSecondary
+		-- Colapsa o card ocultando os sliders com animação
+		TweenService:Create(gmCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, AIMBOT_CARD_COLLAPSED)
+		}):Play()
 		Aimbot_Stop()
 	end
 end)
@@ -722,6 +1152,8 @@ local ESP_Settings = {
 }
 
 local ESP_Tracers    = {}
+local ESP_Boxes      = {}   -- BillboardGui de Box por player
+local ESP_Chams      = {}   -- Highlight de Chams por player
 local ESP_Connection = nil
 
 local function ESP_GetTeamID(p)
@@ -757,17 +1189,40 @@ local function ESP_IsVisible(targetPart)
 end
 
 local function ESP_CleanupPlayer(p)
+	-- Limpa tracer (line)
 	if ESP_Tracers[p.Name] then
 		pcall(function() ESP_Tracers[p.Name].Visible = false end)
 		pcall(function() ESP_Tracers[p.Name]:Remove() end)
 		ESP_Tracers[p.Name] = nil
 	end
+	-- Limpa billboard de nome/distância
 	if p.Character then
 		local head = p.Character:FindFirstChild("Head")
 		if head then
 			local b = head:FindFirstChild("EnemyBillboard")
 			if b then b:Destroy() end
 		end
+	end
+	-- Limpa Box (BillboardGui)
+	if ESP_Boxes[p.Name] then
+		pcall(function() ESP_Boxes[p.Name]:Destroy() end)
+		ESP_Boxes[p.Name] = nil
+	end
+	if p.Character then
+		local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local bx = hrp:FindFirstChild("ESP_Box")
+			if bx then bx:Destroy() end
+		end
+	end
+	-- Limpa Chams (Highlight)
+	if ESP_Chams[p.Name] then
+		pcall(function() ESP_Chams[p.Name]:Destroy() end)
+		ESP_Chams[p.Name] = nil
+	end
+	if p.Character then
+		local hl = p.Character:FindFirstChild("Chams_Highlight")
+		if hl then hl:Destroy() end
 	end
 end
 
@@ -780,12 +1235,23 @@ local function ESP_Stop()
 		ESP_CleanupPlayer(p)
 	end
 	ESP_Tracers = {}
+	ESP_Boxes   = {}
+	ESP_Chams   = {}
 end
+
+local ESP_MAX_DISTANCE_STUDS = 200 * 3.57  -- 200 metros em studs
 
 local function ESP_Start()
 	ESP_Connection = RunService.RenderStepped:Connect(function()
 		local myChar = Player.Character
 		local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+
+		-- lê estado dos checkboxes em tempo real
+		local showLine     = ESP_CB_Line.GetValue()
+		local showBox      = ESP_CB_Box.GetValue()
+		local showName     = ESP_CB_Name.GetValue()
+		local showDistance = ESP_CB_Distance.GetValue()
+		local showChams    = ESP_CB_Chams.GetValue()
 
 		for _, p in pairs(Players:GetPlayers()) do
 			if p ~= Player
@@ -793,10 +1259,85 @@ local function ESP_Start()
 				and p.Character:FindFirstChild("HumanoidRootPart")
 				and p.Character:FindFirstChild("Head") then
 
+				-- Filtro de distância: máximo 200 metros
+				local hrpEnemy = p.Character.HumanoidRootPart
+				if myHRP then
+					local studs = (hrpEnemy.Position - myHRP.Position).Magnitude
+					if studs > ESP_MAX_DISTANCE_STUDS then
+						ESP_CleanupPlayer(p)
+						continue
+					end
+				end
+
 				if ESP_IsEnemy(p) then
 					local head = p.Character.Head
 					local hrp  = p.Character.HumanoidRootPart
 
+					-- ======== CHAMS (Highlight, enemy only) ========
+					if showChams then
+						if not ESP_Chams[p.Name] or not ESP_Chams[p.Name].Parent then
+							-- remove antigo se bugar
+							local old = p.Character:FindFirstChild("Chams_Highlight")
+							if old then old:Destroy() end
+							local hl = Instance.new("Highlight")
+							hl.Name                = "Chams_Highlight"
+							hl.FillColor           = Color3.fromRGB(255, 85, 0)
+							hl.FillTransparency    = 0.5
+							hl.OutlineColor        = Color3.fromRGB(255, 255, 255)
+							hl.OutlineTransparency = 0
+							hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+							hl.Parent              = p.Character
+							ESP_Chams[p.Name]      = hl
+						end
+					else
+						if ESP_Chams[p.Name] then
+							pcall(function() ESP_Chams[p.Name]:Destroy() end)
+							ESP_Chams[p.Name] = nil
+						end
+						local old = p.Character:FindFirstChild("Chams_Highlight")
+						if old then old:Destroy() end
+					end
+
+					-- ======== BOX ESP (BillboardGui, enemy only) ========
+					if showBox then
+						local existingBox = hrp:FindFirstChild("ESP_Box")
+						if not existingBox then
+							local billboard        = Instance.new("BillboardGui")
+							billboard.Name         = "ESP_Box"
+							billboard.Adornee      = hrp
+							billboard.AlwaysOnTop  = true
+							billboard.Size         = UDim2.new(4.5, 0, 6, 0)
+							billboard.ExtentsOffset = Vector3.new(0, 0, 0)
+							billboard.Parent       = hrp
+							ESP_Boxes[p.Name]      = billboard
+
+							local frame            = Instance.new("Frame")
+							frame.Size             = UDim2.new(1, 0, 1, 0)
+							frame.BackgroundTransparency = 1
+							frame.Parent           = billboard
+
+							local stroke           = Instance.new("UIStroke")
+							stroke.Thickness        = 2
+							stroke.Color            = Color3.fromRGB(255, 85, 0)
+							stroke.ApplyStrokeMode  = Enum.ApplyStrokeMode.Border
+							stroke.Transparency     = 0.3
+							stroke.Parent           = frame
+						else
+							-- ajusta tamanho dinamicamente ao corpo
+							local sizeVec  = p.Character:GetExtentsSize()
+							existingBox.Size = UDim2.new(0, 0, 0, 0)
+							existingBox.Size = UDim2.new(sizeVec.X * 0.8, 0, sizeVec.Y * 1.1, 0)
+						end
+					else
+						if ESP_Boxes[p.Name] then
+							pcall(function() ESP_Boxes[p.Name]:Destroy() end)
+							ESP_Boxes[p.Name] = nil
+						end
+						local bx = hrp:FindFirstChild("ESP_Box")
+						if bx then bx:Destroy() end
+					end
+
+					-- ======== LINE + NAME + DISTANCE ========
 					local billboardWorldPos = head.Position + ESP_Settings.BillboardOffset
 					local vector, onScreen  = Camera:WorldToViewportPoint(billboardWorldPos)
 
@@ -812,40 +1353,62 @@ local function ESP_Start()
 						local isVisible    = not ray or ray.Instance:IsDescendantOf(p.Character)
 						local currentColor = isVisible and ESP_Settings.VisibleColor or ESP_Settings.HiddenColor
 
-						if not ESP_Tracers[p.Name] then
-							local line          = Drawing.new("Line")
-							line.Thickness      = ESP_Settings.LineThickness
-							line.Transparency   = 1
-							ESP_Tracers[p.Name] = line
+						-- LINE
+						if showLine then
+							if not ESP_Tracers[p.Name] then
+								local line          = Drawing.new("Line")
+								line.Thickness      = ESP_Settings.LineThickness
+								line.Transparency   = 1
+								ESP_Tracers[p.Name] = line
+							end
+							local line   = ESP_Tracers[p.Name]
+							line.Color   = currentColor
+							line.From    = Vector2.new(Camera.ViewportSize.X / 2, 0)
+							line.To      = Vector2.new(vector.X, vector.Y)
+							line.Visible = true
+						else
+							if ESP_Tracers[p.Name] then
+								ESP_Tracers[p.Name].Visible = false
+							end
 						end
-						local line   = ESP_Tracers[p.Name]
-						line.Color   = currentColor
-						line.From    = Vector2.new(Camera.ViewportSize.X / 2, 0)
-						line.To      = Vector2.new(vector.X, vector.Y)
-						line.Visible = true
 
-						local b = head:FindFirstChild("EnemyBillboard")
-						if not b then
-							b              = Instance.new("BillboardGui", head)
-							b.Name         = "EnemyBillboard"
-							b.AlwaysOnTop  = true
-							b.Size         = UDim2.new(0, 150, 0, 50)
-							b.StudsOffset  = ESP_Settings.BillboardOffset
-							local t               = Instance.new("TextLabel", b)
-							t.Name                = "InfoLabel"
-							t.BackgroundTransparency = 1
-							t.Size                = UDim2.new(1, 0, 1, 0)
-							t.Font                = Enum.Font.GothamBold
-							t.TextSize            = 14
-							t.TextStrokeTransparency = 0
-						end
-						local label = b:FindFirstChild("InfoLabel")
-						if label then
-							local metros     = myHRP and ESP_GetDistanceInMeters(myHRP, hrp) or 0
-							label.Text       = string.format("%s\n[%d Metros]", p.Name, metros)
-							label.TextColor3 = currentColor
+						-- NAME + DISTANCE
+						if showName or showDistance then
+							local b = head:FindFirstChild("EnemyBillboard")
+							if not b then
+								b              = Instance.new("BillboardGui", head)
+								b.Name         = "EnemyBillboard"
+								b.AlwaysOnTop  = true
+								b.Size         = UDim2.new(0, 150, 0, 50)
+								b.StudsOffset  = ESP_Settings.BillboardOffset
+								local t               = Instance.new("TextLabel", b)
+								t.Name                = "InfoLabel"
+								t.BackgroundTransparency = 1
+								t.Size                = UDim2.new(1, 0, 1, 0)
+								t.Font                = Enum.Font.GothamBold
+								t.TextSize            = 14
+								t.TextStrokeTransparency = 0
+							end
+							local label = b:FindFirstChild("InfoLabel")
+							if label then
+								local metros = myHRP and ESP_GetDistanceInMeters(myHRP, hrp) or 0
+								local namePart = showName and p.Name or ""
+								local distPart = showDistance and string.format("[%d Metros]", metros) or ""
+								if showName and showDistance then
+									label.Text = namePart .. "\n" .. distPart
+								elseif showName then
+									label.Text = namePart
+								else
+									label.Text = distPart
+								end
+								label.TextColor3 = currentColor
+							end
+						else
+							local b = head:FindFirstChild("EnemyBillboard")
+							if b then b:Destroy() end
 						end
 					else
+						-- fora da tela: oculta line
 						if ESP_Tracers[p.Name] then
 							ESP_Tracers[p.Name].Visible = false
 						end
@@ -868,11 +1431,21 @@ spHit.MouseButton1Click:Connect(function()
 	ESPEnabled = not ESPEnabled
 	if ESPEnabled then
 		ToggleOn(spBG, spKnob)
+		TweenService:Create(spStroke, FastTween, {Color = Color3.fromRGB(251, 191, 36)}):Play()
 		spSub.Text = "Ativado"; spSub.TextColor3 = Colors.Success
+		-- Expande o card para mostrar checkboxes
+		TweenService:Create(spCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, ESP_CARD_EXPANDED)
+		}):Play()
 		ESP_Start()
 	else
 		ToggleOff(spBG, spKnob)
+		TweenService:Create(spStroke, FastTween, {Color = Colors.Border}):Play()
 		spSub.Text = "Desativado"; spSub.TextColor3 = Colors.TextSecondary
+		-- Colapsa o card ocultando checkboxes
+		TweenService:Create(spCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, ESP_CARD_COLLAPSED)
+		}):Play()
 		ESP_Stop()
 	end
 end)
@@ -918,6 +1491,7 @@ local function TK_Start()
 	TK_ScreenGui = Instance.new("ScreenGui")
 	TK_ScreenGui.Name = "Aimbot_Pro_V6"
 	TK_ScreenGui.ResetOnSpawn = false
+	TK_ScreenGui.DisplayOrder = 999999997
 	TK_ScreenGui.Parent = PlayerGui
 
 	local fovFrame = Instance.new("Frame", TK_ScreenGui)
@@ -926,6 +1500,7 @@ local function TK_Start()
 	fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 	fovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 	fovFrame.BackgroundTransparency = 1
+	fovFrame.ZIndex = 10
 	local uiStroke = Instance.new("UIStroke", fovFrame)
 	uiStroke.Name = "FOVStroke"
 	uiStroke.Color = Color3.fromRGB(255, 0, 0)
@@ -1011,7 +1586,7 @@ end)
 -- =============================================
 
 -- ----- SPEED -----
-local Speed_Multiplicador = 1.2  -- Ajuste conforme necessário (quanto maior, mais rápido)
+local Speed_Multiplicador = 1.2
 local Speed_Connection    = nil
 
 local function Speed_Start()
@@ -1019,7 +1594,6 @@ local function Speed_Start()
 		local char = Player.Character
 		local hrp  = char and char:FindFirstChild("HumanoidRootPart")
 		local hum  = char and char:FindFirstChildOfClass("Humanoid")
-		-- Só aplica se o player estiver se movendo
 		if hrp and hum and hum.MoveDirection.Magnitude > 0 then
 			hrp.CFrame = hrp.CFrame + (hum.MoveDirection * Speed_Multiplicador)
 		end
@@ -1104,7 +1678,6 @@ local function NoClip_Stop()
 		NoClip_Connection:Disconnect()
 		NoClip_Connection = nil
 	end
-	-- Restaura colisão
 	local char = Player.Character
 	if char then
 		for _, part in pairs(char:GetDescendants()) do
@@ -1140,6 +1713,7 @@ MiniBar.Position = UDim2.new(-1, -200, 0.5, -21)
 MiniBar.BackgroundColor3 = Colors.TitleBar
 MiniBar.BorderSizePixel = 0
 MiniBar.Visible = false
+MiniBar.ZIndex = 10
 MiniBar.Parent = ScreenGui
 
 Instance.new("UICorner", MiniBar).CornerRadius = UDim.new(0, 21)
@@ -1157,6 +1731,7 @@ MiniLabel.TextColor3 = Colors.TextPrimary
 MiniLabel.TextSize = 13
 MiniLabel.Font = Enum.Font.GothamBold
 MiniLabel.TextXAlignment = Enum.TextXAlignment.Left
+MiniLabel.ZIndex = 11
 MiniLabel.Parent = MiniBar
 
 local MaxBtn = Instance.new("TextButton")
@@ -1169,6 +1744,7 @@ MaxBtn.TextColor3 = Colors.TextPrimary
 MaxBtn.TextSize = 14
 MaxBtn.Font = Enum.Font.GothamBold
 MaxBtn.AutoButtonColor = false
+MaxBtn.ZIndex = 12
 MaxBtn.Parent = MiniBar
 Instance.new("UICorner", MaxBtn).CornerRadius = UDim.new(0, 8)
 
@@ -1211,9 +1787,9 @@ MakeDraggable(MiniBar, MiniBar)
 -- =====================
 --   POSIÇÕES (lado esquerdo da tela)
 -- =====================
-local POS_CENTER     = UDim2.new(0, 16, 0.5, -GUI_H/2)   -- lado esquerdo, verticalmente centralizado
+local POS_CENTER     = UDim2.new(0, 16, 0.5, -GUI_H/2)
 local POS_OFFSCREEN  = UDim2.new(-1, -GUI_W, 0.5, -GUI_H/2)
-local MINI_CENTER    = UDim2.new(0, 16, 0.5, -21)          -- lado esquerdo, verticalmente centralizado
+local MINI_CENTER    = UDim2.new(0, 16, 0.5, -21)
 local MINI_OFFSCREEN = UDim2.new(-1, -200, 0.5, -21)
 
 -- =====================
@@ -1221,7 +1797,6 @@ local MINI_OFFSCREEN = UDim2.new(-1, -200, 0.5, -21)
 -- =====================
 local function Minimize()
 	IsMinimized = true
-	-- Guarda posição atual antes de minimizar
 	local currentPos = MainFrame.Position
 	TweenService:Create(MainFrame, SlowTween, {Position = POS_OFFSCREEN}):Play()
 	task.delay(0.35, function()
@@ -1251,4 +1826,204 @@ MaxBtn.MouseButton1Click:Connect(Maximize)
 -- =====================
 TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
 
-print("[Anxiee Scripts] Carregado com sucesso! | Aimbot V7 | ESP Definitivo | Player Page")
+print("[Anxiee Scripts] Carregado com sucesso! | Aimbot V7 + Slider | ESP | Teleport Kill | Player | GUI Responsiva + Scroll")
+
+-- =============================================
+--   PERSISTÊNCIA DE TELEPORTE
+--   Mantém o script funcionando ao trocar
+--   de sub-place dentro do mesmo jogo (GameId)
+-- =============================================
+--
+--  Como funciona:
+--  1. O script detecta quando o Roblox vai
+--     teleportar o player para um sub-place.
+--  2. Usa queue_on_teleport (Synapse X, KRNL,
+--     Fluxus, etc.) para re-executar o script
+--     automaticamente após o teleporte.
+--  3. O script deve ser salvo como:
+--       "AnxieeScripts.lua"
+--     na pasta workspace do seu executor.
+--     Assim ele é relido e re-executado após
+--     cada teleporte sem intervenção manual.
+--  4. Se o executor não suportar essas funções,
+--     uma notificação pede para re-executar.
+-- =============================================
+
+local PERSIST_FILENAME = "AnxieeScripts.lua"
+
+local function ShowRerunNotification()
+	-- Pequena notificação pedindo re-execução manual
+	task.spawn(function()
+		task.wait(2.5) -- aguarda o novo place carregar
+		local ok, pg = pcall(function()
+			return Players.LocalPlayer:WaitForChild("PlayerGui", 10)
+		end)
+		if not ok or not pg then return end
+
+		local sg = Instance.new("ScreenGui")
+		sg.Name         = "AnxieeRerunNotif"
+		sg.DisplayOrder = 999999999
+		sg.IgnoreGuiInset = true
+		sg.ResetOnSpawn = false
+		sg.Parent       = pg
+
+		local f = Instance.new("Frame")
+		f.Size        = UDim2.new(0, 310, 0, 70)
+		f.AnchorPoint = Vector2.new(0.5, 0)
+		f.Position    = UDim2.new(0.5, 0, -0.2, 0)
+		f.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
+		f.BorderSizePixel  = 0
+		f.Parent = sg
+		Instance.new("UICorner", f).CornerRadius = UDim.new(0, 14)
+		local fs = Instance.new("UIStroke")
+		fs.Color = Color3.fromRGB(99, 102, 241)
+		fs.Thickness = 1.5
+		fs.Parent = f
+
+		local icon = Instance.new("TextLabel")
+		icon.Size = UDim2.new(0, 36, 0, 36)
+		icon.Position = UDim2.new(0, 10, 0.5, -18)
+		icon.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+		icon.Text     = "⚡"
+		icon.TextSize = 18
+		icon.Font     = Enum.Font.GothamBold
+		icon.BorderSizePixel = 0
+		icon.Parent = f
+		Instance.new("UICorner", icon).CornerRadius = UDim.new(0, 8)
+
+		local lbl = Instance.new("TextLabel")
+		lbl.Size = UDim2.new(1, -62, 0, 24)
+		lbl.Position = UDim2.new(0, 54, 0, 10)
+		lbl.BackgroundTransparency = 1
+		lbl.Text = "Anxiee Scripts"
+		lbl.TextColor3 = Color3.fromRGB(240, 240, 255)
+		lbl.TextSize   = 13
+		lbl.Font       = Enum.Font.GothamBold
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.Parent = f
+
+		local sub = Instance.new("TextLabel")
+		sub.Size = UDim2.new(1, -62, 0, 20)
+		sub.Position = UDim2.new(0, 54, 0, 36)
+		sub.BackgroundTransparency = 1
+		sub.Text = "Please re-run the script in this place."
+		sub.TextColor3 = Color3.fromRGB(140, 140, 200)
+		sub.TextSize   = 11
+		sub.Font       = Enum.Font.Gotham
+		sub.TextXAlignment = Enum.TextXAlignment.Left
+		sub.Parent = f
+
+		local ts = game:GetService("TweenService")
+		ts:Create(f, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+			Position = UDim2.new(0.5, 0, 0, 20)
+		}):Play()
+
+		task.delay(6, function()
+			ts:Create(f, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+				Position = UDim2.new(0.5, 0, -0.2, 0)
+			}):Play()
+			task.delay(0.5, function() sg:Destroy() end)
+		end)
+	end)
+end
+
+Players.LocalPlayer.OnTeleport:Connect(function(teleportState)
+	-- Detecta início de teleporte para sub-place
+	if teleportState == Enum.TeleportState.RequestedFromServer
+		or teleportState == Enum.TeleportState.InProgress then
+
+		task.spawn(function()
+			-- Verifica se queue_on_teleport está disponível (Synapse X, KRNL, Fluxus, etc.)
+			if typeof(queue_on_teleport) == "function" then
+				-- Tenta ler o script salvo no workspace do executor
+				local ok, src = pcall(function()
+					return readfile(PERSIST_FILENAME)
+				end)
+
+				if ok and src and #src > 500 then
+					-- Re-executa o script salvo após o teleporte
+					queue_on_teleport(src)
+				else
+					-- Arquivo não encontrado: tenta salvar agora para uso futuro
+					pcall(function()
+						-- Notificação mínima via queue para avisar sobre re-execução
+						queue_on_teleport([[
+task.wait(2.5)
+local ts = game:GetService("TweenService")
+local pg = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui",10)
+if not pg then return end
+local sg = Instance.new("ScreenGui"); sg.Name="AnxieeRerun"; sg.DisplayOrder=999999999; sg.IgnoreGuiInset=true; sg.ResetOnSpawn=false; sg.Parent=pg
+local f = Instance.new("Frame"); f.Size=UDim2.new(0,310,0,70); f.AnchorPoint=Vector2.new(0.5,0); f.Position=UDim2.new(0.5,0,-0.2,0); f.BackgroundColor3=Color3.fromRGB(18,18,26); f.BorderSizePixel=0; f.Parent=sg
+Instance.new("UICorner",f).CornerRadius=UDim.new(0,14)
+local st=Instance.new("UIStroke"); st.Color=Color3.fromRGB(99,102,241); st.Thickness=1.5; st.Parent=f
+local ik=Instance.new("TextLabel"); ik.Size=UDim2.new(0,36,0,36); ik.Position=UDim2.new(0,10,0.5,-18); ik.BackgroundColor3=Color3.fromRGB(30,30,50); ik.Text="⚡"; ik.TextSize=18; ik.Font=Enum.Font.GothamBold; ik.BorderSizePixel=0; ik.Parent=f; Instance.new("UICorner",ik).CornerRadius=UDim.new(0,8)
+local t1=Instance.new("TextLabel"); t1.Size=UDim2.new(1,-62,0,24); t1.Position=UDim2.new(0,54,0,10); t1.BackgroundTransparency=1; t1.Text="Anxiee Scripts"; t1.TextColor3=Color3.fromRGB(240,240,255); t1.TextSize=13; t1.Font=Enum.Font.GothamBold; t1.TextXAlignment=Enum.TextXAlignment.Left; t1.Parent=f
+local t2=Instance.new("TextLabel"); t2.Size=UDim2.new(1,-62,0,20); t2.Position=UDim2.new(0,54,0,36); t2.BackgroundTransparency=1; t2.Text="Please re-run the script in this place."; t2.TextColor3=Color3.fromRGB(140,140,200); t2.TextSize=11; t2.Font=Enum.Font.Gotham; t2.TextXAlignment=Enum.TextXAlignment.Left; t2.Parent=f
+ts:Create(f,TweenInfo.new(0.4,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Position=UDim2.new(0.5,0,0,20)}):Play()
+task.delay(6,function() ts:Create(f,TweenInfo.new(0.4,Enum.EasingStyle.Quart,Enum.EasingDirection.Out),{Position=UDim2.new(0.5,0,-0.2,0)}):Play(); task.delay(0.5,function() sg:Destroy() end) end)
+]])
+					end)
+				end
+			else
+				-- Executor não suporta queue_on_teleport
+				-- Exibe notificação no novo place pedindo re-execução
+				ShowRerunNotification()
+			end
+		end)
+	end
+end)
+
+-- Dica: salve este script como "AnxieeScripts.lua" na pasta workspace
+-- do seu executor para que o queue_on_teleport funcione automaticamente.
+
+-- =============================================
+--   RECONEXÃO APÓS RESPAWN / TROCA DE MAPA
+--   Reinicializa todas as features ativas
+--   quando o personagem renasce (spawn novo mapa)
+-- =============================================
+Player.CharacterAdded:Connect(function()
+	-- Aguarda o personagem e HumanoidRootPart carregarem
+	task.wait(1.5)
+
+	-- Aimbot: reinicia se estava ativo
+	if AimbotEnabled then
+		pcall(Aimbot_Stop)
+		task.wait(0.1)
+		pcall(Aimbot_Start)
+	end
+
+	-- ESP: reinicia conexão se estava ativo
+	if ESPEnabled then
+		pcall(ESP_Stop)
+		task.wait(0.1)
+		pcall(ESP_Start)
+	end
+
+	-- Speed: reconecta heartbeat se estava ativo
+	if SpeedEnabled then
+		pcall(Speed_Stop)
+		task.wait(0.1)
+		pcall(Speed_Start)
+	end
+
+	-- Inf Jump: reconecta JumpRequest se estava ativo
+	if InfJumpEnabled then
+		pcall(InfJump_Stop)
+		task.wait(0.1)
+		pcall(InfJump_Start)
+	end
+
+	-- No Clip: reconecta Stepped se estava ativo
+	if NoClipEnabled then
+		pcall(NoClip_Stop)
+		task.wait(0.1)
+		pcall(NoClip_Start)
+	end
+
+	-- Teleport Kill: reinicia se estava ativo
+	if TeleportKillEnabled then
+		pcall(TK_Stop)
+		task.wait(0.1)
+		pcall(TK_Start)
+	end
+end)
