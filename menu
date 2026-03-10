@@ -278,7 +278,7 @@ local SubLabel = Instance.new("TextLabel")
 SubLabel.Size = UDim2.new(0, 80, 1, 0)
 SubLabel.Position = UDim2.new(0, 34, 0, 14)
 SubLabel.BackgroundTransparency = 1
-SubLabel.Text = "Update 05/03/26 v1.1"
+SubLabel.Text = "Update 09/03/26 v1.3"
 SubLabel.TextColor3 = Colors.TextSecondary
 SubLabel.TextSize = 10
 SubLabel.Font = Enum.Font.Gotham
@@ -716,7 +716,7 @@ local AIMBOT_CARD_COLLAPSED = 58
 local AIMBOT_CARD_EXPANDED  = 152
 local gmCard, gmStroke = CreateCard(PageMain, 1, AIMBOT_CARD_COLLAPSED)
 gmCard.ClipsDescendants = true  -- clips os sliders quando colapsado
-local gmSub = AddCardInfo(gmCard, "🎯", Colors.Accent, "Aimbot", "Desativado")
+local gmSub = AddCardInfo(gmCard, "🎯", Colors.Accent, "Aimbot", "OFF")
 local gmBG, gmKnob, gmHit = AddToggle(gmCard, 0.5)
 
 -- Slider de Smoothness (aparece ao expandir)
@@ -730,7 +730,7 @@ local ESP_CARD_COLLAPSED = 58
 local ESP_CARD_EXPANDED  = 130
 local spCard, spStroke = CreateCard(PageMain, 2, ESP_CARD_COLLAPSED)
 spCard.ClipsDescendants = true
-local spSub = AddCardInfo(spCard, "👁️", Color3.fromRGB(251, 191, 36), "ESP", "Desativado")
+local spSub = AddCardInfo(spCard, "👁️", Color3.fromRGB(251, 191, 36), "ESP", "OFF")
 local spBG, spKnob, spHit = AddToggle(spCard, 0.5)
 
 -- Separador visual entre toggle e checkboxes
@@ -764,21 +764,31 @@ local ESP_CB_Name     = CreateCheckbox(spCard, "Name",     true,  152, 83)
 local ESP_CB_Distance = CreateCheckbox(spCard, "Distance", true,  12,  108)
 local ESP_CB_Chams    = CreateCheckbox(spCard, "Chams",    false, 82,  108)
 
-local tkCard, tkStroke = CreateCard(PageMain, 3)
-local tkSub = AddCardInfo(tkCard, "💨", Color3.fromRGB(167, 139, 250), "Teleport Kill", "Desativado")
-local tkBG, tkKnob, tkHit = AddToggle(tkCard)
+-- =============================================
+--   TELEPORT KILL CARD - EXPANSÍVEL COM SLIDER
+--   Colapsado: 58px | Expandido: 110px
+-- =============================================
+local TK_CARD_COLLAPSED = 58
+local TK_CARD_EXPANDED  = 110
+local tkCard, tkStroke = CreateCard(PageMain, 3, TK_CARD_COLLAPSED)
+tkCard.ClipsDescendants = true
+local tkSub = AddCardInfo(tkCard, "💨", Color3.fromRGB(167, 139, 250), "Teleport Kill", "OFF")
+local tkBG, tkKnob, tkHit = AddToggle(tkCard, 0.5)
+
+-- Slider de distância do TK (0 = mesma posição, 10 = 10 studs atrás)
+local TK_DistanceSlider = CreateSlider(tkCard, 0, 10, 3, "Distance:", 64, "%.1f")
 
 -- ============  PLAYER  ============
 local spdCard, spdStroke = CreateCard(PagePlayer, 1)
-local spdSub = AddCardInfo(spdCard, "⚡", Color3.fromRGB(250, 204, 21), "Speed", "Desativado")
+local spdSub = AddCardInfo(spdCard, "⚡", Color3.fromRGB(250, 204, 21), "Speed", "OFF")
 local spdBG, spdKnob, spdHit = AddToggle(spdCard)
 
 local ijCard, ijStroke = CreateCard(PagePlayer, 2)
-local ijSub = AddCardInfo(ijCard, "🚀", Color3.fromRGB(52, 211, 153), "Inf Jump", "Desativado")
+local ijSub = AddCardInfo(ijCard, "🚀", Color3.fromRGB(52, 211, 153), "Inf Jump", "OFF")
 local ijBG, ijKnob, ijHit = AddToggle(ijCard)
 
 local ncCard, ncStroke = CreateCard(PagePlayer, 3)
-local ncSub = AddCardInfo(ncCard, "👻", Color3.fromRGB(196, 181, 253), "No Clip", "Desativado")
+local ncSub = AddCardInfo(ncCard, "👻", Color3.fromRGB(196, 181, 253), "No Clip", "OFF")
 local ncBG, ncKnob, ncHit = AddToggle(ncCard)
 
 -- ============  SETTINGS  ============
@@ -796,7 +806,7 @@ local infoTitle = Instance.new("TextLabel")
 infoTitle.Size = UDim2.new(1, -20, 0, 24)
 infoTitle.Position = UDim2.new(0, 14, 0, 10)
 infoTitle.BackgroundTransparency = 1
-infoTitle.Text = "⚡ Rivals Script  v1.1"
+infoTitle.Text = "⚡ Rivals Script  v1.2"
 infoTitle.TextColor3 = Colors.TextPrimary
 infoTitle.TextSize = 13
 infoTitle.Font = Enum.Font.GothamBold
@@ -854,7 +864,7 @@ local discordSub = Instance.new("TextLabel")
 discordSub.Size = UDim2.new(1, -70, 0, 16)
 discordSub.Position = UDim2.new(0, 56, 0, 32)
 discordSub.BackgroundTransparency = 1
-discordSub.Text = "Entrar no servidor"
+discordSub.Text = "Join Discord"
 discordSub.TextColor3 = Color3.fromRGB(200, 210, 255)
 discordSub.TextSize = 11
 discordSub.Font = Enum.Font.Gotham
@@ -871,9 +881,9 @@ discordBtn.Parent = discordCard
 
 discordBtn.MouseButton1Click:Connect(function()
 	setclipboard("https://discord.gg/FMP62xQAEa")
-	discordSub.Text = "Link copiado! ✓"
+	discordSub.Text = "Link copied! ✓"
 	task.delay(2, function()
-		discordSub.Text = "Entrar no servidor"
+		discordSub.Text = "Join Discord"
 	end)
 end)
 
@@ -1115,7 +1125,7 @@ gmHit.MouseButton1Click:Connect(function()
 		ToggleOn(gmBG, gmKnob)
 		TweenService:Create(gmStroke, FastTween, {Color = Colors.Accent}):Play()
 		TweenService:Create(MainStroke, FastTween, {Color = Colors.AccentGlow}):Play()
-		gmSub.Text = "Ativado"
+		gmSub.Text = "ON"
 		gmSub.TextColor3 = Colors.Success
 		-- Expande o card com animação suave para mostrar os sliders
 		TweenService:Create(gmCard, SlowTween, {
@@ -1126,7 +1136,7 @@ gmHit.MouseButton1Click:Connect(function()
 		ToggleOff(gmBG, gmKnob)
 		TweenService:Create(gmStroke, FastTween, {Color = Colors.Border}):Play()
 		TweenService:Create(MainStroke, FastTween, {Color = Colors.Border}):Play()
-		gmSub.Text = "Desativado"
+		gmSub.Text = "OFF"
 		gmSub.TextColor3 = Colors.TextSecondary
 		-- Colapsa o card ocultando os sliders com animação
 		TweenService:Create(gmCard, SlowTween, {
@@ -1432,7 +1442,7 @@ spHit.MouseButton1Click:Connect(function()
 	if ESPEnabled then
 		ToggleOn(spBG, spKnob)
 		TweenService:Create(spStroke, FastTween, {Color = Color3.fromRGB(251, 191, 36)}):Play()
-		spSub.Text = "Ativado"; spSub.TextColor3 = Colors.Success
+		spSub.Text = "ON"; spSub.TextColor3 = Colors.Success
 		-- Expande o card para mostrar checkboxes
 		TweenService:Create(spCard, SlowTween, {
 			Size = UDim2.new(1, 0, 0, ESP_CARD_EXPANDED)
@@ -1441,7 +1451,7 @@ spHit.MouseButton1Click:Connect(function()
 	else
 		ToggleOff(spBG, spKnob)
 		TweenService:Create(spStroke, FastTween, {Color = Colors.Border}):Play()
-		spSub.Text = "Desativado"; spSub.TextColor3 = Colors.TextSecondary
+		spSub.Text = "OFF"; spSub.TextColor3 = Colors.TextSecondary
 		-- Colapsa o card ocultando checkboxes
 		TweenService:Create(spCard, SlowTween, {
 			Size = UDim2.new(1, 0, 0, ESP_CARD_COLLAPSED)
@@ -1450,16 +1460,20 @@ spHit.MouseButton1Click:Connect(function()
 	end
 end)
 
--- =====================
---   TELEPORT KILL - LÓGICA INLINE (V6.5)
--- =====================
+-- =============================================
+--   TELEPORT KILL V2 - MELHORADO
+--   - Slider de distância (0 a 10 studs)
+--   - Posicionamento INSTANTÂNEO nas costas do enemy
+--   - Rotação sincronizada com o enemy sem delay
+--   - Offset baseado no LookVector do enemy (sempre nas costas)
+-- =============================================
 local TK_Settings = {
 	FOV           = 150,
 	Smoothness    = 1.0,
 	TargetPart    = "Head",
 	TeamCheck     = true,
 	StickToTarget = false,
-	StickOffset   = Vector3.new(0, 3, 6),
+	-- StickOffset removido: agora calculado dinamicamente pelo slider
 }
 
 local TK_ScreenGui     = nil
@@ -1468,13 +1482,16 @@ local TK_HeartbeatConn = nil
 local function TK_GetClosestEnemy()
 	local target, shortestDist = nil, math.huge
 	local myTeam = Player:GetAttribute("TeamID")
+	local myChar = Player.Character
+	local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	if not myHRP then return nil end
 	for _, p in pairs(Players:GetPlayers()) do
 		if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
 			local enemyTeam = p:GetAttribute("TeamID")
 			local isEnemy = not TK_Settings.TeamCheck or (myTeam == nil or myTeam == "") or (enemyTeam ~= myTeam)
 			local hum = p.Character:FindFirstChild("Humanoid")
 			if isEnemy and hum and hum.Health > 0 then
-				local dist = (p.Character.HumanoidRootPart.Position - Player.Character.HumanoidRootPart.Position).Magnitude
+				local dist = (p.Character.HumanoidRootPart.Position - myHRP.Position).Magnitude
 				if dist < shortestDist then
 					target = p.Character
 					shortestDist = dist
@@ -1507,21 +1524,46 @@ local function TK_Start()
 	uiStroke.Thickness = 2
 	Instance.new("UICorner", fovFrame).CornerRadius = UDim.new(1, 0)
 
+	-- =============================================
+	--  HEARTBEAT: posicionamento instantâneo
+	--  nas costas do enemy usando LookVector
+	--  Distância lida do slider em tempo real
+	-- =============================================
 	TK_HeartbeatConn = RunService.Heartbeat:Connect(function()
-		if TK_Settings.StickToTarget and Player.Character then
-			local targetChar = TK_GetClosestEnemy()
-			local myHRP = Player.Character:FindFirstChild("HumanoidRootPart")
-			if targetChar and myHRP then
-				local enemyHRP = targetChar:FindFirstChild("HumanoidRootPart")
-				if enemyHRP then
-					myHRP.CFrame = enemyHRP.CFrame * CFrame.new(TK_Settings.StickOffset)
-					myHRP.Velocity = Vector3.new(0, 0, 0)
-					myHRP.RotVelocity = Vector3.new(0, 0, 0)
-				end
-			end
-			for _, part in pairs(Player.Character:GetDescendants()) do
-				if part:IsA("BasePart") then part.CanCollide = false end
-			end
+		if not TK_Settings.StickToTarget then return end
+
+		local myChar = Player.Character
+		local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		if not myHRP then return end
+
+		local targetChar = TK_GetClosestEnemy()
+		if not targetChar then return end
+
+		local enemyHRP = targetChar:FindFirstChild("HumanoidRootPart")
+		if not enemyHRP then return end
+
+		-- Lê distância do slider em tempo real (0 = mesma posição, 10 = 10 studs atrás)
+		local dist = TK_DistanceSlider.GetValue()
+
+		-- Calcula posição exatamente nas costas do enemy:
+		-- LookVector aponta para frente do enemy, então atrás = LookVector negativo
+		-- Mantém a altura (Y) do enemy para não flutuar
+		local enemyCF     = enemyHRP.CFrame
+		local behindOffset = enemyCF.LookVector * (-dist)  -- negativo = atrás
+		local targetPos   = enemyHRP.Position + behindOffset
+
+		-- Rotação do meu player igual ao enemy (sem delay, instantâneo)
+		-- Desta forma meu player olha na mesma direção do enemy (costas dele)
+		local newCFrame = CFrame.new(targetPos) * CFrame.Angles(0, math.atan2(-enemyCF.LookVector.X, -enemyCF.LookVector.Z), 0)
+
+		-- Aplica posição e rotação instantaneamente (sem Lerp para zero delay)
+		myHRP.CFrame       = newCFrame
+		myHRP.Velocity     = Vector3.new(0, 0, 0)
+		myHRP.RotVelocity  = Vector3.new(0, 0, 0)
+
+		-- Desativa colisão
+		for _, part in pairs(myChar:GetDescendants()) do
+			if part:IsA("BasePart") then part.CanCollide = false end
 		end
 	end)
 
@@ -1571,12 +1613,20 @@ tkHit.MouseButton1Click:Connect(function()
 	if TeleportKillEnabled then
 		ToggleOn(tkBG, tkKnob)
 		TweenService:Create(tkStroke, FastTween, {Color = Color3.fromRGB(167, 139, 250)}):Play()
-		tkSub.Text = "Ativado"; tkSub.TextColor3 = Colors.Success
+		tkSub.Text = "ON"; tkSub.TextColor3 = Colors.Success
+		-- Expande o card para mostrar o slider de distância
+		TweenService:Create(tkCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, TK_CARD_EXPANDED)
+		}):Play()
 		TK_Start()
 	else
 		ToggleOff(tkBG, tkKnob)
 		TweenService:Create(tkStroke, FastTween, {Color = Colors.Border}):Play()
-		tkSub.Text = "Desativado"; tkSub.TextColor3 = Colors.TextSecondary
+		tkSub.Text = "OFF"; tkSub.TextColor3 = Colors.TextSecondary
+		-- Colapsa o card
+		TweenService:Create(tkCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, TK_CARD_COLLAPSED)
+		}):Play()
 		TK_Stop()
 	end
 end)
@@ -1612,12 +1662,12 @@ spdHit.MouseButton1Click:Connect(function()
 	if SpeedEnabled then
 		ToggleOn(spdBG, spdKnob)
 		TweenService:Create(spdStroke, FastTween, {Color = Color3.fromRGB(250, 204, 21)}):Play()
-		spdSub.Text = "Ativado"; spdSub.TextColor3 = Colors.Success
+		spdSub.Text = "ON"; spdSub.TextColor3 = Colors.Success
 		Speed_Start()
 	else
 		ToggleOff(spdBG, spdKnob)
 		TweenService:Create(spdStroke, FastTween, {Color = Colors.Border}):Play()
-		spdSub.Text = "Desativado"; spdSub.TextColor3 = Colors.TextSecondary
+		spdSub.Text = "OFF"; spdSub.TextColor3 = Colors.TextSecondary
 		Speed_Stop()
 	end
 end)
@@ -1647,12 +1697,12 @@ ijHit.MouseButton1Click:Connect(function()
 	if InfJumpEnabled then
 		ToggleOn(ijBG, ijKnob)
 		TweenService:Create(ijStroke, FastTween, {Color = Color3.fromRGB(52, 211, 153)}):Play()
-		ijSub.Text = "Ativado"; ijSub.TextColor3 = Colors.Success
+		ijSub.Text = "ON"; ijSub.TextColor3 = Colors.Success
 		InfJump_Start()
 	else
 		ToggleOff(ijBG, ijKnob)
 		TweenService:Create(ijStroke, FastTween, {Color = Colors.Border}):Play()
-		ijSub.Text = "Desativado"; ijSub.TextColor3 = Colors.TextSecondary
+		ijSub.Text = "OFF"; ijSub.TextColor3 = Colors.TextSecondary
 		InfJump_Stop()
 	end
 end)
@@ -1693,12 +1743,12 @@ ncHit.MouseButton1Click:Connect(function()
 	if NoClipEnabled then
 		ToggleOn(ncBG, ncKnob)
 		TweenService:Create(ncStroke, FastTween, {Color = Color3.fromRGB(196, 181, 253)}):Play()
-		ncSub.Text = "Ativado"; ncSub.TextColor3 = Colors.Success
+		ncSub.Text = "ON"; ncSub.TextColor3 = Colors.Success
 		NoClip_Start()
 	else
 		ToggleOff(ncBG, ncKnob)
 		TweenService:Create(ncStroke, FastTween, {Color = Colors.Border}):Play()
-		ncSub.Text = "Desativado"; ncSub.TextColor3 = Colors.TextSecondary
+		ncSub.Text = "OFF"; ncSub.TextColor3 = Colors.TextSecondary
 		NoClip_Stop()
 	end
 end)
@@ -1826,7 +1876,7 @@ MaxBtn.MouseButton1Click:Connect(Maximize)
 -- =====================
 TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
 
-print("[Anxiee Scripts] Carregado com sucesso! | Aimbot V7 + Slider | ESP | Teleport Kill | Player | GUI Responsiva + Scroll")
+print("[Anxiee Scripts] Carregado com sucesso! | Aimbot V7 + Slider | ESP | Teleport Kill V2 + Slider Distância | Player | GUI Responsiva + Scroll")
 
 -- =============================================
 --   PERSISTÊNCIA DE TELEPORTE
