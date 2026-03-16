@@ -1636,7 +1636,7 @@ end)
 -- =============================================
 
 -- ----- SPEED -----
-local Speed_Multiplicador = 1.2
+local Speed_Multiplicador = 0.8
 local Speed_Connection    = nil
 
 local function Speed_Start()
