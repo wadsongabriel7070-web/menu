@@ -65,12 +65,10 @@ local SlowTween = TweenInfo.new(0.4,  Enum.EasingStyle.Quart, Enum.EasingDirecti
 
 -- =============================================
 --   GAME LOCK — Creator ID: 3461453 (RIVALS)
---   Script only works in games by this creator
 -- =============================================
 local REQUIRED_CREATOR_ID = 3461453
 
 if game.CreatorId ~= REQUIRED_CREATOR_ID then
-	-- Create standalone error notification (no main GUI needed)
 	local ErrGui = Instance.new("ScreenGui")
 	ErrGui.Name          = "AnxieeWrongGame"
 	ErrGui.ResetOnSpawn  = false
@@ -78,11 +76,10 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrGui.DisplayOrder  = 999999999
 	ErrGui.Parent        = PlayerGui
 
-	-- Card principal
 	local ErrFrame = Instance.new("Frame")
 	ErrFrame.Size        = UDim2.new(0, 330, 0, 96)
 	ErrFrame.AnchorPoint = Vector2.new(0.5, 0)
-	ErrFrame.Position    = UDim2.new(0.5, 0, -0.25, 0) -- começa fora da tela
+	ErrFrame.Position    = UDim2.new(0.5, 0, -0.25, 0)
 	ErrFrame.BackgroundColor3 = Color3.fromRGB(22, 14, 14)
 	ErrFrame.BorderSizePixel  = 0
 	ErrFrame.Parent      = ErrGui
@@ -93,7 +90,6 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrStroke.Thickness = 1.5
 	ErrStroke.Parent    = ErrFrame
 
-	-- Barra vermelha lateral
 	local ErrBar = Instance.new("Frame")
 	ErrBar.Size = UDim2.new(0, 4, 1, -16)
 	ErrBar.Position = UDim2.new(0, 8, 0, 8)
@@ -102,7 +98,6 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrBar.Parent = ErrFrame
 	Instance.new("UICorner", ErrBar).CornerRadius = UDim.new(1, 0)
 
-	-- Ícone
 	local ErrIconBg = Instance.new("Frame")
 	ErrIconBg.Size = UDim2.new(0, 40, 0, 40)
 	ErrIconBg.Position = UDim2.new(0, 18, 0.5, -20)
@@ -120,7 +115,6 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrIcon.ZIndex    = 2
 	ErrIcon.Parent    = ErrIconBg
 
-	-- Título
 	local ErrTitle = Instance.new("TextLabel")
 	ErrTitle.Size     = UDim2.new(1, -80, 0, 26)
 	ErrTitle.Position = UDim2.new(0, 68, 0, 12)
@@ -132,12 +126,11 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrTitle.TextXAlignment = Enum.TextXAlignment.Left
 	ErrTitle.Parent        = ErrFrame
 
-	-- Mensagem
 	local ErrMsg = Instance.new("TextLabel")
 	ErrMsg.Size     = UDim2.new(1, -80, 0, 44)
 	ErrMsg.Position = UDim2.new(0, 68, 0, 40)
 	ErrMsg.BackgroundTransparency = 1
-	ErrMsg.Text          = "⚡ Anxiee Scripts only works in the correct game.\nPlease join the right game and try again."
+	ErrMsg.Text          = "Anxiee Scripts only works in the correct game.\nPlease join the right game and try again."
 	ErrMsg.TextColor3    = Color3.fromRGB(180, 120, 120)
 	ErrMsg.TextSize      = 11
 	ErrMsg.Font          = Enum.Font.Gotham
@@ -145,7 +138,6 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrMsg.TextWrapped   = true
 	ErrMsg.Parent        = ErrFrame
 
-	-- Barra de progresso (conta regressiva visual)
 	local ErrBarBg = Instance.new("Frame")
 	ErrBarBg.Size = UDim2.new(1, -16, 0, 3)
 	ErrBarBg.Position = UDim2.new(0, 8, 1, -8)
@@ -161,32 +153,19 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrBarFill.Parent = ErrBarBg
 	Instance.new("UICorner", ErrBarFill).CornerRadius = UDim.new(1, 0)
 
-	-- Animação de entrada (slide down)
 	local DISMISS_DELAY = 6
-	TweenService:Create(ErrFrame, SlowTween, {
-		Position = UDim2.new(0.5, 0, 0, 20)
-	}):Play()
-
-	-- Barra de progresso encolhe conforme o tempo passa
-	TweenService:Create(ErrBarFill,
-		TweenInfo.new(DISMISS_DELAY, Enum.EasingStyle.Linear),
-		{Size = UDim2.new(0, 0, 1, 0)}
-	):Play()
-
-	-- Auto-dismiss com slide up
+	TweenService:Create(ErrFrame, SlowTween, {Position = UDim2.new(0.5, 0, 0, 20)}):Play()
+	TweenService:Create(ErrBarFill, TweenInfo.new(DISMISS_DELAY, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)}):Play()
 	task.delay(DISMISS_DELAY, function()
-		TweenService:Create(ErrFrame, SlowTween, {
-			Position = UDim2.new(0.5, 0, -0.25, 0)
-		}):Play()
+		TweenService:Create(ErrFrame, SlowTween, {Position = UDim2.new(0.5, 0, -0.25, 0)}):Play()
 		task.delay(0.5, function() ErrGui:Destroy() end)
 	end)
 
-	return -- Interrompe o script completamente
+	return
 end
 
 -- =====================
---   SCREEN GUI (PRIORIDADE MÁXIMA)
---   Parented to CoreGui para persistir entre sub-places/mapas
+--   SCREEN GUI
 -- =====================
 local CoreGui = game:GetService("CoreGui")
 local ScreenGui = Instance.new("ScreenGui")
@@ -194,13 +173,9 @@ ScreenGui.Name = "Anxiee Scripts"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.IgnoreGuiInset = true
-ScreenGui.DisplayOrder = 999999999  -- PRIORIDADE MÁXIMA
--- Tenta CoreGui primeiro (persiste entre teleportes/mapas sem precisar re-executar)
--- Se o executor bloquear CoreGui, cai para PlayerGui
+ScreenGui.DisplayOrder = 999999999
 local guiOk = pcall(function() ScreenGui.Parent = CoreGui end)
-if not guiOk then
-	ScreenGui.Parent = PlayerGui
-end
+if not guiOk then ScreenGui.Parent = PlayerGui end
 
 -- =====================
 --   JANELA PRINCIPAL
@@ -225,7 +200,6 @@ MainStroke.Thickness = 1.5
 MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 MainStroke.Parent = MainFrame
 
--- Constraint para garantir tamanho máximo em telas pequenas
 local sizeConstraint = Instance.new("UISizeConstraint")
 sizeConstraint.MaxSize = Vector2.new(GUI_W, GUI_H)
 sizeConstraint.MinSize = Vector2.new(280, 350)
@@ -266,7 +240,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(1, -80, 1, 0)
 TitleLabel.Position = UDim2.new(0, 34, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "⚡ Anxiie Scripts"
+TitleLabel.Text = "Anxiie Scripts"
 TitleLabel.TextColor3 = Colors.TextPrimary
 TitleLabel.TextSize = 15
 TitleLabel.Font = Enum.Font.GothamBold
@@ -278,7 +252,7 @@ local SubLabel = Instance.new("TextLabel")
 SubLabel.Size = UDim2.new(0, 80, 1, 0)
 SubLabel.Position = UDim2.new(0, 34, 0, 14)
 SubLabel.BackgroundTransparency = 1
-SubLabel.Text = "Update 09/03/26 v1.3"
+SubLabel.Text = "Update 04/04/26 v1.5"
 SubLabel.TextColor3 = Colors.TextSecondary
 SubLabel.TextSize = 10
 SubLabel.Font = Enum.Font.Gotham
@@ -472,7 +446,6 @@ end
 
 local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPosition, fmtStr)
 	fmtStr = fmtStr or "%.2f"
-	-- Container do slider
 	local sliderContainer = Instance.new("Frame")
 	sliderContainer.Size = UDim2.new(1, -76, 0, 24)
 	sliderContainer.Position = UDim2.new(0, 56, 0, yPosition)
@@ -480,7 +453,6 @@ local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPositi
 	sliderContainer.ZIndex = 12
 	sliderContainer.Parent = card
 
-	-- Label do slider
 	local sliderLabel = Instance.new("TextLabel")
 	sliderLabel.Size = UDim2.new(0.5, 0, 1, 0)
 	sliderLabel.Position = UDim2.new(0, 0, 0, 0)
@@ -493,7 +465,6 @@ local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPositi
 	sliderLabel.ZIndex = 12
 	sliderLabel.Parent = sliderContainer
 
-	-- Valor atual
 	local valueLabel = Instance.new("TextLabel")
 	valueLabel.Size = UDim2.new(0.3, 0, 1, 0)
 	valueLabel.Position = UDim2.new(0.7, 0, 0, 0)
@@ -506,7 +477,6 @@ local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPositi
 	valueLabel.ZIndex = 12
 	valueLabel.Parent = sliderContainer
 
-	-- Background da barra
 	local sliderBg = Instance.new("Frame")
 	sliderBg.Size = UDim2.new(1, 0, 0, 4)
 	sliderBg.Position = UDim2.new(0, 0, 1, 6)
@@ -516,7 +486,6 @@ local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPositi
 	sliderBg.Parent = sliderContainer
 	Instance.new("UICorner", sliderBg).CornerRadius = UDim.new(1, 0)
 
-	-- Barra de progresso
 	local sliderFill = Instance.new("Frame")
 	local fillPercent = (defaultVal - minVal) / (maxVal - minVal)
 	sliderFill.Size = UDim2.new(fillPercent, 0, 1, 0)
@@ -526,7 +495,6 @@ local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPositi
 	sliderFill.Parent = sliderBg
 	Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(1, 0)
 
-	-- Botão deslizante
 	local sliderKnob = Instance.new("Frame")
 	sliderKnob.Size = UDim2.new(0, 12, 0, 12)
 	sliderKnob.Position = UDim2.new(fillPercent, -6, 0.5, -6)
@@ -536,7 +504,6 @@ local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPositi
 	sliderKnob.Parent = sliderBg
 	Instance.new("UICorner", sliderKnob).CornerRadius = UDim.new(1, 0)
 
-	-- Hitbox interativa
 	local sliderHitbox = Instance.new("TextButton")
 	sliderHitbox.Size = UDim2.new(1, 0, 1, 12)
 	sliderHitbox.Position = UDim2.new(0, 0, 0, -4)
@@ -551,11 +518,9 @@ local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPositi
 	local function UpdateSlider(input)
 		local relativeX = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
 		currentValue = minVal + (maxVal - minVal) * relativeX
-		
 		TweenService:Create(sliderFill, FastTween, {Size = UDim2.new(relativeX, 0, 1, 0)}):Play()
 		TweenService:Create(sliderKnob, FastTween, {Position = UDim2.new(relativeX, -6, 0.5, -6)}):Play()
 		valueLabel.Text = string.format(fmtStr, currentValue)
-		
 		return currentValue
 	end
 
@@ -565,13 +530,11 @@ local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPositi
 			UpdateSlider(input)
 		end
 	end)
-
 	sliderHitbox.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = false
 		end
 	end)
-
 	UserInputService.InputChanged:Connect(function(input)
 		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 			UpdateSlider(input)
@@ -664,7 +627,7 @@ local function ToggleOff(bg, knob)
 end
 
 -- =====================
---   TAB BUTTONS  (3 abas agora)
+--   TAB BUTTONS
 -- =====================
 local TabButtons = {}
 
@@ -698,7 +661,6 @@ local function CreateTab(label, index, total)
 	return btn
 end
 
--- 3 tabs: MAIN | PLAYER | SETTINGS
 local tabMain     = CreateTab("MAIN",     1, 3)
 local tabPlayer   = CreateTab("PLAYER",   2, 3)
 local tabSettings = CreateTab("SETTINGS", 3, 3)
@@ -711,29 +673,27 @@ local PagePlayer   = CreatePage("PLAYER")
 local PageSettings = CreatePage("SETTINGS")
 
 -- ============  MAIN  ============
--- Card do Aimbot: começa colapsado (58px), expande ao ativar (152px)
 local AIMBOT_CARD_COLLAPSED = 58
 local AIMBOT_CARD_EXPANDED  = 152
 local gmCard, gmStroke = CreateCard(PageMain, 1, AIMBOT_CARD_COLLAPSED)
-gmCard.ClipsDescendants = true  -- clips os sliders quando colapsado
+gmCard.ClipsDescendants = true
 local gmSub = AddCardInfo(gmCard, "🎯", Colors.Accent, "Aimbot", "OFF")
 local gmBG, gmKnob, gmHit = AddToggle(gmCard, 0.5)
 
--- Slider de Smoothness (aparece ao expandir)
 local AimbotSmoothnessSlider = CreateSlider(gmCard, 0.75, 1.0, 1.0, "Smoothness:", 64)
+local AimbotFOVSlider        = CreateSlider(gmCard, 50, 300, 150, "FOV:", 106, "%d")
 
--- Slider de FOV (aparece ao expandir, abaixo do Smoothness)
-local AimbotFOVSlider = CreateSlider(gmCard, 50, 300, 150, "FOV:", 106, "%d")
-
--- Card do ESP: começa colapsado (58px), expande ao ativar (130px) para mostrar checkboxes
+-- =============================================
+-- Card ESP: Colapsado 58px | Expandido 158px
+-- (3 linhas de checkboxes incluindo Eggs)
+-- =============================================
 local ESP_CARD_COLLAPSED = 58
-local ESP_CARD_EXPANDED  = 130
+local ESP_CARD_EXPANDED  = 158
 local spCard, spStroke = CreateCard(PageMain, 2, ESP_CARD_COLLAPSED)
 spCard.ClipsDescendants = true
 local spSub = AddCardInfo(spCard, "👁️", Color3.fromRGB(251, 191, 36), "ESP", "OFF")
 local spBG, spKnob, spHit = AddToggle(spCard, 0.5)
 
--- Separador visual entre toggle e checkboxes
 local espSep = Instance.new("Frame")
 espSep.Size = UDim2.new(1, -24, 0, 1)
 espSep.Position = UDim2.new(0, 12, 0, 62)
@@ -742,7 +702,6 @@ espSep.BorderSizePixel = 0
 espSep.ZIndex = 12
 espSep.Parent = spCard
 
--- Label "Opções:" acima dos checkboxes
 local espOptLabel = Instance.new("TextLabel")
 espOptLabel.Size = UDim2.new(1, -24, 0, 14)
 espOptLabel.Position = UDim2.new(0, 12, 0, 67)
@@ -755,18 +714,20 @@ espOptLabel.TextXAlignment = Enum.TextXAlignment.Left
 espOptLabel.ZIndex = 12
 espOptLabel.Parent = spCard
 
--- Checkboxes fila 1: Line | Box | Name   (y=83)
+-- Fila 1: Line | Box | Name   (y=83)
 local ESP_CB_Line     = CreateCheckbox(spCard, "Line",     true,  12,  83)
 local ESP_CB_Box      = CreateCheckbox(spCard, "Box",      false, 82,  83)
 local ESP_CB_Name     = CreateCheckbox(spCard, "Name",     true,  152, 83)
 
--- Checkboxes fila 2: Distance | Chams   (y=108)
+-- Fila 2: Distance | Chams   (y=108)
 local ESP_CB_Distance = CreateCheckbox(spCard, "Distance", true,  12,  108)
 local ESP_CB_Chams    = CreateCheckbox(spCard, "Chams",    false, 82,  108)
 
+-- Fila 3: Eggs   (y=133)
+local ESP_CB_Eggs     = CreateCheckbox(spCard, "Eggs",     false, 12,  133)
+
 -- =============================================
---   TELEPORT KILL CARD - EXPANSÍVEL COM SLIDER
---   Colapsado: 58px | Expandido: 110px
+--   TELEPORT KILL CARD
 -- =============================================
 local TK_CARD_COLLAPSED = 58
 local TK_CARD_EXPANDED  = 110
@@ -775,7 +736,6 @@ tkCard.ClipsDescendants = true
 local tkSub = AddCardInfo(tkCard, "💨", Color3.fromRGB(167, 139, 250), "Teleport Kill", "OFF")
 local tkBG, tkKnob, tkHit = AddToggle(tkCard, 0.5)
 
--- Slider de distância do TK (0 = mesma posição, 10 = 10 studs atrás)
 local TK_DistanceSlider = CreateSlider(tkCard, 0, 10, 3, "Distance:", 64, "%.1f")
 
 -- ============  PLAYER  ============
@@ -806,7 +766,7 @@ local infoTitle = Instance.new("TextLabel")
 infoTitle.Size = UDim2.new(1, -20, 0, 24)
 infoTitle.Position = UDim2.new(0, 14, 0, 10)
 infoTitle.BackgroundTransparency = 1
-infoTitle.Text = "⚡ Rivals Script  v1.2"
+infoTitle.Text = "Rivals Script  v1.4"
 infoTitle.TextColor3 = Colors.TextPrimary
 infoTitle.TextSize = 13
 infoTitle.Font = Enum.Font.GothamBold
@@ -882,9 +842,7 @@ discordBtn.Parent = discordCard
 discordBtn.MouseButton1Click:Connect(function()
 	setclipboard("https://discord.gg/FMP62xQAEa")
 	discordSub.Text = "Link copied! ✓"
-	task.delay(2, function()
-		discordSub.Text = "Join Discord"
-	end)
+	task.delay(2, function() discordSub.Text = "Join Discord" end)
 end)
 
 -- =====================
@@ -920,15 +878,11 @@ tabSettings.MouseButton1Click:Connect(function() SwitchTab("SETTINGS") end)
 SwitchTab("MAIN")
 
 -- =============================================
---   AIMBOT V7 - CORRIGIDO COM SLIDER
---   - FOV centralizado na crosshair real
---   - Mira trava e acompanha o alvo
---   - Bloqueia câmera/mouse enquanto travado
---   - Smoothness ajustável via slider
+--   AIMBOT V7
 -- =============================================
 local AimSettings = {
-	FOV        = 150,   -- atualizado em tempo real pelo slider
-	Smoothness = 1.0,   -- atualizado em tempo real pelo slider
+	FOV        = 150,
+	Smoothness = 1.0,
 	TargetPart = "Head",
 	TeamCheck  = true,
 	WallCheck  = true,
@@ -948,9 +902,7 @@ local function Aimbot_GetVM()
 	local vmFolder = workspace:FindFirstChild("ViewModels")
 	if vmFolder and vmFolder:FindFirstChild("FirstPerson") then
 		for _, v in pairs(vmFolder.FirstPerson:GetChildren()) do
-			if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") then
-				return v
-			end
+			if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") then return v end
 		end
 	end
 	return nil
@@ -960,11 +912,7 @@ local function Aimbot_IsVisible(part, char)
 	local cam = workspace.CurrentCamera
 	local ray = RaycastParams.new()
 	ray.FilterType = Enum.RaycastFilterType.Exclude
-	ray.FilterDescendantsInstances = {
-		Player.Character,
-		cam,
-		workspace:FindFirstChild("ViewModels")
-	}
+	ray.FilterDescendantsInstances = {Player.Character, cam, workspace:FindFirstChild("ViewModels")}
 	local origin    = cam.CFrame.Position
 	local direction = part.Position - origin
 	local res = workspace:Raycast(origin, direction, ray)
@@ -980,7 +928,7 @@ local function Aimbot_InFOV(part)
 	return dist <= AimSettings.FOV, dist
 end
 
-local AIMBOT_MAX_DISTANCE_STUDS = 200 * 3.57  -- 200 metros em studs
+local AIMBOT_MAX_DISTANCE_STUDS = 200 * 3.57
 
 local function Aimbot_GetTarget()
 	local target, shortest = nil, AimSettings.FOV
@@ -993,7 +941,6 @@ local function Aimbot_GetTarget()
 				local part = p.Character:FindFirstChild(AimSettings.TargetPart)
 				local hum  = p.Character:FindFirstChild("Humanoid")
 				if part and hum and hum.Health > 0 then
-					-- Filtro de distância: máximo 200 metros
 					if myHRP then
 						local studs = (part.Position - myHRP.Position).Magnitude
 						if studs > AIMBOT_MAX_DISTANCE_STUDS then continue end
@@ -1001,7 +948,7 @@ local function Aimbot_GetTarget()
 					local inFOV, dist = Aimbot_InFOV(part)
 					if inFOV and dist < shortest then
 						if not AimSettings.WallCheck or Aimbot_IsVisible(part, p.Character) then
-							target  = part
+							target   = part
 							shortest = dist
 						end
 					end
@@ -1052,11 +999,8 @@ local function Aimbot_Start()
 	RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
 		if not Aimbot_Active then return end
 
-		-- Atualiza smoothness e FOV dos sliders em tempo real
 		AimSettings.Smoothness = AimbotSmoothnessSlider.GetValue()
 		AimSettings.FOV        = AimbotFOVSlider.GetValue()
-
-		-- Atualiza tamanho do círculo de FOV em tempo real
 		fovFrame.Size = UDim2.new(0, AimSettings.FOV * 2, 0, AimSettings.FOV * 2)
 
 		local cam    = workspace.CurrentCamera
@@ -1065,16 +1009,11 @@ local function Aimbot_Start()
 		if Aimbot_LockedTarget then
 			if not Aimbot_IsTargetValid(Aimbot_LockedTarget) then
 				Aimbot_LockedTarget = nil
-				if Aimbot_InputConn then
-					Aimbot_InputConn:Disconnect()
-					Aimbot_InputConn = nil
-				end
+				if Aimbot_InputConn then Aimbot_InputConn:Disconnect(); Aimbot_InputConn = nil end
 			end
 		end
 
-		if not Aimbot_LockedTarget then
-			Aimbot_LockedTarget = Aimbot_GetTarget()
-		end
+		if not Aimbot_LockedTarget then Aimbot_LockedTarget = Aimbot_GetTarget() end
 
 		if Aimbot_LockedTarget then
 			local targetPos = Aimbot_LockedTarget.Position
@@ -1090,9 +1029,7 @@ local function Aimbot_Start()
 			local vm = Aimbot_GetVM()
 			if vm then
 				local vmHRP = vm:FindFirstChild("HumanoidRootPart")
-				if vmHRP then
-					vmHRP.CFrame = cam.CFrame
-				end
+				if vmHRP then vmHRP.CFrame = cam.CFrame end
 			end
 
 			if stroke then stroke.Color = Color3.fromRGB(255, 50, 50) end
@@ -1105,18 +1042,9 @@ end
 local function Aimbot_Stop()
 	Aimbot_Active = false
 	Aimbot_LockedTarget = nil
-
-	if Aimbot_InputConn then
-		Aimbot_InputConn:Disconnect()
-		Aimbot_InputConn = nil
-	end
-
+	if Aimbot_InputConn then Aimbot_InputConn:Disconnect(); Aimbot_InputConn = nil end
 	pcall(function() RunService:UnbindFromRenderStep("AimbotUpdate") end)
-
-	if Aimbot_ScreenGui then
-		Aimbot_ScreenGui:Destroy()
-		Aimbot_ScreenGui = nil
-	end
+	if Aimbot_ScreenGui then Aimbot_ScreenGui:Destroy(); Aimbot_ScreenGui = nil end
 end
 
 gmHit.MouseButton1Click:Connect(function()
@@ -1125,30 +1053,92 @@ gmHit.MouseButton1Click:Connect(function()
 		ToggleOn(gmBG, gmKnob)
 		TweenService:Create(gmStroke, FastTween, {Color = Colors.Accent}):Play()
 		TweenService:Create(MainStroke, FastTween, {Color = Colors.AccentGlow}):Play()
-		gmSub.Text = "ON"
-		gmSub.TextColor3 = Colors.Success
-		-- Expande o card com animação suave para mostrar os sliders
-		TweenService:Create(gmCard, SlowTween, {
-			Size = UDim2.new(1, 0, 0, AIMBOT_CARD_EXPANDED)
-		}):Play()
+		gmSub.Text = "ON"; gmSub.TextColor3 = Colors.Success
+		TweenService:Create(gmCard, SlowTween, {Size = UDim2.new(1, 0, 0, AIMBOT_CARD_EXPANDED)}):Play()
 		Aimbot_Start()
 	else
 		ToggleOff(gmBG, gmKnob)
 		TweenService:Create(gmStroke, FastTween, {Color = Colors.Border}):Play()
 		TweenService:Create(MainStroke, FastTween, {Color = Colors.Border}):Play()
-		gmSub.Text = "OFF"
-		gmSub.TextColor3 = Colors.TextSecondary
-		-- Colapsa o card ocultando os sliders com animação
-		TweenService:Create(gmCard, SlowTween, {
-			Size = UDim2.new(1, 0, 0, AIMBOT_CARD_COLLAPSED)
-		}):Play()
+		gmSub.Text = "OFF"; gmSub.TextColor3 = Colors.TextSecondary
+		TweenService:Create(gmCard, SlowTween, {Size = UDim2.new(1, 0, 0, AIMBOT_CARD_COLLAPSED)}):Play()
 		Aimbot_Stop()
 	end
 end)
 
 -- =============================================
+--   EGG ESP - Configurações
+-- =============================================
+local EGG_MESH_ID = "rbxassetid://1527559"
+local EGG_COLOR   = "White"
+
+-- Cria o ovo 3D + chams dourado na cabeça do inimigo
+local function EggESP_CreateForCharacter(character)
+	local head = character:FindFirstChild("Head")
+	if not head then return end
+
+	-- Evita duplicatas
+	if character:FindFirstChild("EggESP") then return end
+
+	-- 1. Part do Ovo
+	local egg = Instance.new("Part")
+	egg.Name       = "EggESP"
+	egg.Size       = Vector3.new(1, 1, 1)
+	egg.BrickColor = BrickColor.new(EGG_COLOR)
+	egg.CanCollide = false
+	egg.Anchored   = false
+	egg.Parent     = character
+
+	local mesh = Instance.new("SpecialMesh", egg)
+	mesh.MeshType = Enum.MeshType.FileMesh
+	mesh.MeshId   = EGG_MESH_ID
+	mesh.Scale    = Vector3.new(1.5, 1.5, 1.5)
+
+	-- Weld: prende o ovo na cabeça
+	local weld = Instance.new("Weld", egg)
+	weld.Part0 = head
+	weld.Part1 = egg
+	weld.C0    = CFrame.new(0, 1.0, 0)
+
+	-- 2. Highlight (Chams - ver através da parede, borda dourada)
+	local highlight = Instance.new("Highlight")
+	highlight.Name                = "EggHighlight"
+	highlight.FillColor           = Color3.fromRGB(255, 255, 255)
+	highlight.OutlineColor        = Color3.fromRGB(255, 215, 0) -- Dourado
+	highlight.FillTransparency    = 0.4
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+	highlight.Parent              = egg
+
+	-- 3. BillboardGui (sem texto, mantido para uso futuro)
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name        = "EggTag"
+	billboard.Size        = UDim2.new(0, 50, 0, 50)
+	billboard.StudsOffset = Vector3.new(0, 2, 0)
+	billboard.AlwaysOnTop = true
+	billboard.Parent      = egg
+end
+
+-- Remove o ovo de um character específico
+local function EggESP_RemoveFromCharacter(character)
+	if not character then return end
+	local egg = character:FindFirstChild("EggESP")
+	if egg then egg:Destroy() end
+end
+
+-- Remove ovos de todos os inimigos (chamado ao desligar)
+local function EggESP_RemoveAll()
+	for _, p in pairs(Players:GetPlayers()) do
+		if p ~= Player and p.Character then
+			EggESP_RemoveFromCharacter(p.Character)
+		end
+	end
+end
+
+-- =============================================
 --   ESP DEFINITIVO - METROS + FILTRO TIME
 --   + TRACERS NO NICKNAME (BILLBOARD)
+--   + EGGS 3D (Part+Mesh+Weld+Highlight dourado)
 -- =============================================
 local Camera = workspace.CurrentCamera
 
@@ -1162,8 +1152,8 @@ local ESP_Settings = {
 }
 
 local ESP_Tracers    = {}
-local ESP_Boxes      = {}   -- BillboardGui de Box por player
-local ESP_Chams      = {}   -- Highlight de Chams por player
+local ESP_Boxes      = {}
+local ESP_Chams      = {}
 local ESP_Connection = nil
 
 local function ESP_GetTeamID(p)
@@ -1174,28 +1164,13 @@ local function ESP_IsEnemy(p)
 	if ESP_Settings.KillAllMode then return true end
 	local myTeam     = Player.Team or ESP_GetTeamID(Player)
 	local targetTeam = p.Team     or ESP_GetTeamID(p)
-	if myTeam and targetTeam and myTeam == targetTeam then
-		return false
-	end
+	if myTeam and targetTeam and myTeam == targetTeam then return false end
 	return true
 end
 
 local function ESP_GetDistanceInMeters(p1, p2)
 	local studs = (p1.Position - p2.Position).Magnitude
 	return math.floor(studs / ESP_Settings.MetrosConversao)
-end
-
-local function ESP_IsVisible(targetPart)
-	local origin    = Camera.CFrame.Position
-	local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
-	local params    = RaycastParams.new()
-	params.FilterDescendantsInstances = {Player.Character, Camera}
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	local result = workspace:Raycast(origin, direction, params)
-	if result then
-		return result.Instance:IsDescendantOf(targetPart.Parent)
-	end
-	return true
 end
 
 local function ESP_CleanupPlayer(p)
@@ -1213,7 +1188,7 @@ local function ESP_CleanupPlayer(p)
 			if b then b:Destroy() end
 		end
 	end
-	-- Limpa Box (BillboardGui)
+	-- Limpa Box
 	if ESP_Boxes[p.Name] then
 		pcall(function() ESP_Boxes[p.Name]:Destroy() end)
 		ESP_Boxes[p.Name] = nil
@@ -1225,7 +1200,7 @@ local function ESP_CleanupPlayer(p)
 			if bx then bx:Destroy() end
 		end
 	end
-	-- Limpa Chams (Highlight)
+	-- Limpa Chams
 	if ESP_Chams[p.Name] then
 		pcall(function() ESP_Chams[p.Name]:Destroy() end)
 		ESP_Chams[p.Name] = nil
@@ -1233,6 +1208,10 @@ local function ESP_CleanupPlayer(p)
 	if p.Character then
 		local hl = p.Character:FindFirstChild("Chams_Highlight")
 		if hl then hl:Destroy() end
+	end
+	-- Limpa Egg
+	if p.Character then
+		EggESP_RemoveFromCharacter(p.Character)
 	end
 end
 
@@ -1247,21 +1226,22 @@ local function ESP_Stop()
 	ESP_Tracers = {}
 	ESP_Boxes   = {}
 	ESP_Chams   = {}
+	EggESP_RemoveAll()
 end
 
-local ESP_MAX_DISTANCE_STUDS = 200 * 3.57  -- 200 metros em studs
+local ESP_MAX_DISTANCE_STUDS = 200 * 3.57
 
 local function ESP_Start()
 	ESP_Connection = RunService.RenderStepped:Connect(function()
 		local myChar = Player.Character
 		local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
 
-		-- lê estado dos checkboxes em tempo real
 		local showLine     = ESP_CB_Line.GetValue()
 		local showBox      = ESP_CB_Box.GetValue()
 		local showName     = ESP_CB_Name.GetValue()
 		local showDistance = ESP_CB_Distance.GetValue()
 		local showChams    = ESP_CB_Chams.GetValue()
+		local showEggs     = ESP_CB_Eggs.GetValue()
 
 		for _, p in pairs(Players:GetPlayers()) do
 			if p ~= Player
@@ -1269,7 +1249,6 @@ local function ESP_Start()
 				and p.Character:FindFirstChild("HumanoidRootPart")
 				and p.Character:FindFirstChild("Head") then
 
-				-- Filtro de distância: máximo 200 metros
 				local hrpEnemy = p.Character.HumanoidRootPart
 				if myHRP then
 					local studs = (hrpEnemy.Position - myHRP.Position).Magnitude
@@ -1283,10 +1262,9 @@ local function ESP_Start()
 					local head = p.Character.Head
 					local hrp  = p.Character.HumanoidRootPart
 
-					-- ======== CHAMS (Highlight, enemy only) ========
+					-- ======== CHAMS ========
 					if showChams then
 						if not ESP_Chams[p.Name] or not ESP_Chams[p.Name].Parent then
-							-- remove antigo se bugar
 							local old = p.Character:FindFirstChild("Chams_Highlight")
 							if old then old:Destroy() end
 							local hl = Instance.new("Highlight")
@@ -1308,7 +1286,7 @@ local function ESP_Start()
 						if old then old:Destroy() end
 					end
 
-					-- ======== BOX ESP (BillboardGui, enemy only) ========
+					-- ======== BOX ESP ========
 					if showBox then
 						local existingBox = hrp:FindFirstChild("ESP_Box")
 						if not existingBox then
@@ -1321,20 +1299,19 @@ local function ESP_Start()
 							billboard.Parent       = hrp
 							ESP_Boxes[p.Name]      = billboard
 
-							local frame            = Instance.new("Frame")
-							frame.Size             = UDim2.new(1, 0, 1, 0)
+							local frame = Instance.new("Frame")
+							frame.Size  = UDim2.new(1, 0, 1, 0)
 							frame.BackgroundTransparency = 1
-							frame.Parent           = billboard
+							frame.Parent = billboard
 
-							local stroke           = Instance.new("UIStroke")
-							stroke.Thickness        = 2
-							stroke.Color            = Color3.fromRGB(255, 85, 0)
-							stroke.ApplyStrokeMode  = Enum.ApplyStrokeMode.Border
-							stroke.Transparency     = 0.3
-							stroke.Parent           = frame
+							local stroke = Instance.new("UIStroke")
+							stroke.Thickness       = 2
+							stroke.Color           = Color3.fromRGB(255, 85, 0)
+							stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+							stroke.Transparency    = 0.3
+							stroke.Parent          = frame
 						else
-							-- ajusta tamanho dinamicamente ao corpo
-							local sizeVec  = p.Character:GetExtentsSize()
+							local sizeVec = p.Character:GetExtentsSize()
 							existingBox.Size = UDim2.new(0, 0, 0, 0)
 							existingBox.Size = UDim2.new(sizeVec.X * 0.8, 0, sizeVec.Y * 1.1, 0)
 						end
@@ -1345,6 +1322,17 @@ local function ESP_Start()
 						end
 						local bx = hrp:FindFirstChild("ESP_Box")
 						if bx then bx:Destroy() end
+					end
+
+					-- ======== EGGS ESP ========
+					-- Ativa: coloca ovo 3D + highlight dourado na cabeça do inimigo
+					-- Desativa: remove completamente
+					if showEggs then
+						if not p.Character:FindFirstChild("EggESP") then
+							EggESP_CreateForCharacter(p.Character)
+						end
+					else
+						EggESP_RemoveFromCharacter(p.Character)
 					end
 
 					-- ======== LINE + NAME + DISTANCE ========
@@ -1386,22 +1374,22 @@ local function ESP_Start()
 						if showName or showDistance then
 							local b = head:FindFirstChild("EnemyBillboard")
 							if not b then
-								b              = Instance.new("BillboardGui", head)
-								b.Name         = "EnemyBillboard"
-								b.AlwaysOnTop  = true
-								b.Size         = UDim2.new(0, 150, 0, 50)
-								b.StudsOffset  = ESP_Settings.BillboardOffset
-								local t               = Instance.new("TextLabel", b)
-								t.Name                = "InfoLabel"
+								b             = Instance.new("BillboardGui", head)
+								b.Name        = "EnemyBillboard"
+								b.AlwaysOnTop = true
+								b.Size        = UDim2.new(0, 150, 0, 50)
+								b.StudsOffset = ESP_Settings.BillboardOffset
+								local t = Instance.new("TextLabel", b)
+								t.Name                   = "InfoLabel"
 								t.BackgroundTransparency = 1
-								t.Size                = UDim2.new(1, 0, 1, 0)
-								t.Font                = Enum.Font.GothamBold
-								t.TextSize            = 14
+								t.Size                   = UDim2.new(1, 0, 1, 0)
+								t.Font                   = Enum.Font.GothamBold
+								t.TextSize               = 14
 								t.TextStrokeTransparency = 0
 							end
 							local label = b:FindFirstChild("InfoLabel")
 							if label then
-								local metros = myHRP and ESP_GetDistanceInMeters(myHRP, hrp) or 0
+								local metros   = myHRP and ESP_GetDistanceInMeters(myHRP, hrp) or 0
 								local namePart = showName and p.Name or ""
 								local distPart = showDistance and string.format("[%d Metros]", metros) or ""
 								if showName and showDistance then
@@ -1418,7 +1406,6 @@ local function ESP_Start()
 							if b then b:Destroy() end
 						end
 					else
-						-- fora da tela: oculta line
 						if ESP_Tracers[p.Name] then
 							ESP_Tracers[p.Name].Visible = false
 						end
@@ -1443,29 +1430,19 @@ spHit.MouseButton1Click:Connect(function()
 		ToggleOn(spBG, spKnob)
 		TweenService:Create(spStroke, FastTween, {Color = Color3.fromRGB(251, 191, 36)}):Play()
 		spSub.Text = "ON"; spSub.TextColor3 = Colors.Success
-		-- Expande o card para mostrar checkboxes
-		TweenService:Create(spCard, SlowTween, {
-			Size = UDim2.new(1, 0, 0, ESP_CARD_EXPANDED)
-		}):Play()
+		TweenService:Create(spCard, SlowTween, {Size = UDim2.new(1, 0, 0, ESP_CARD_EXPANDED)}):Play()
 		ESP_Start()
 	else
 		ToggleOff(spBG, spKnob)
 		TweenService:Create(spStroke, FastTween, {Color = Colors.Border}):Play()
 		spSub.Text = "OFF"; spSub.TextColor3 = Colors.TextSecondary
-		-- Colapsa o card ocultando checkboxes
-		TweenService:Create(spCard, SlowTween, {
-			Size = UDim2.new(1, 0, 0, ESP_CARD_COLLAPSED)
-		}):Play()
+		TweenService:Create(spCard, SlowTween, {Size = UDim2.new(1, 0, 0, ESP_CARD_COLLAPSED)}):Play()
 		ESP_Stop()
 	end
 end)
 
 -- =============================================
---   TELEPORT KILL V2 - MELHORADO
---   - Slider de distância (0 a 10 studs)
---   - Posicionamento INSTANTÂNEO nas costas do enemy
---   - Rotação sincronizada com o enemy sem delay
---   - Offset baseado no LookVector do enemy (sempre nas costas)
+--   TELEPORT KILL V2
 -- =============================================
 local TK_Settings = {
 	FOV           = 150,
@@ -1473,7 +1450,6 @@ local TK_Settings = {
 	TargetPart    = "Head",
 	TeamCheck     = true,
 	StickToTarget = false,
-	-- StickOffset removido: agora calculado dinamicamente pelo slider
 }
 
 local TK_ScreenGui     = nil
@@ -1524,11 +1500,6 @@ local function TK_Start()
 	uiStroke.Thickness = 2
 	Instance.new("UICorner", fovFrame).CornerRadius = UDim.new(1, 0)
 
-	-- =============================================
-	--  HEARTBEAT: posicionamento instantâneo
-	--  nas costas do enemy usando LookVector
-	--  Distância lida do slider em tempo real
-	-- =============================================
 	TK_HeartbeatConn = RunService.Heartbeat:Connect(function()
 		if not TK_Settings.StickToTarget then return end
 
@@ -1542,26 +1513,17 @@ local function TK_Start()
 		local enemyHRP = targetChar:FindFirstChild("HumanoidRootPart")
 		if not enemyHRP then return end
 
-		-- Lê distância do slider em tempo real (0 = mesma posição, 10 = 10 studs atrás)
-		local dist = TK_DistanceSlider.GetValue()
-
-		-- Calcula posição exatamente nas costas do enemy:
-		-- LookVector aponta para frente do enemy, então atrás = LookVector negativo
-		-- Mantém a altura (Y) do enemy para não flutuar
+		local dist        = TK_DistanceSlider.GetValue()
 		local enemyCF     = enemyHRP.CFrame
-		local behindOffset = enemyCF.LookVector * (-dist)  -- negativo = atrás
+		local behindOffset = enemyCF.LookVector * (-dist)
 		local targetPos   = enemyHRP.Position + behindOffset
 
-		-- Rotação do meu player igual ao enemy (sem delay, instantâneo)
-		-- Desta forma meu player olha na mesma direção do enemy (costas dele)
 		local newCFrame = CFrame.new(targetPos) * CFrame.Angles(0, math.atan2(-enemyCF.LookVector.X, -enemyCF.LookVector.Z), 0)
 
-		-- Aplica posição e rotação instantaneamente (sem Lerp para zero delay)
-		myHRP.CFrame       = newCFrame
-		myHRP.Velocity     = Vector3.new(0, 0, 0)
-		myHRP.RotVelocity  = Vector3.new(0, 0, 0)
+		myHRP.CFrame      = newCFrame
+		myHRP.Velocity    = Vector3.new(0, 0, 0)
+		myHRP.RotVelocity = Vector3.new(0, 0, 0)
 
-		-- Desativa colisão
 		for _, part in pairs(myChar:GetDescendants()) do
 			if part:IsA("BasePart") then part.CanCollide = false end
 		end
@@ -1591,10 +1553,7 @@ local function TK_Start()
 end
 
 local function TK_Stop()
-	if TK_HeartbeatConn then
-		TK_HeartbeatConn:Disconnect()
-		TK_HeartbeatConn = nil
-	end
+	if TK_HeartbeatConn then TK_HeartbeatConn:Disconnect(); TK_HeartbeatConn = nil end
 	pcall(function() RunService:UnbindFromRenderStep("TKAimbotUpdate") end)
 	if Player.Character then
 		for _, part in pairs(Player.Character:GetDescendants()) do
@@ -1602,10 +1561,7 @@ local function TK_Stop()
 		end
 	end
 	TK_Settings.StickToTarget = false
-	if TK_ScreenGui then
-		TK_ScreenGui:Destroy()
-		TK_ScreenGui = nil
-	end
+	if TK_ScreenGui then TK_ScreenGui:Destroy(); TK_ScreenGui = nil end
 end
 
 tkHit.MouseButton1Click:Connect(function()
@@ -1614,19 +1570,13 @@ tkHit.MouseButton1Click:Connect(function()
 		ToggleOn(tkBG, tkKnob)
 		TweenService:Create(tkStroke, FastTween, {Color = Color3.fromRGB(167, 139, 250)}):Play()
 		tkSub.Text = "ON"; tkSub.TextColor3 = Colors.Success
-		-- Expande o card para mostrar o slider de distância
-		TweenService:Create(tkCard, SlowTween, {
-			Size = UDim2.new(1, 0, 0, TK_CARD_EXPANDED)
-		}):Play()
+		TweenService:Create(tkCard, SlowTween, {Size = UDim2.new(1, 0, 0, TK_CARD_EXPANDED)}):Play()
 		TK_Start()
 	else
 		ToggleOff(tkBG, tkKnob)
 		TweenService:Create(tkStroke, FastTween, {Color = Colors.Border}):Play()
 		tkSub.Text = "OFF"; tkSub.TextColor3 = Colors.TextSecondary
-		-- Colapsa o card
-		TweenService:Create(tkCard, SlowTween, {
-			Size = UDim2.new(1, 0, 0, TK_CARD_COLLAPSED)
-		}):Play()
+		TweenService:Create(tkCard, SlowTween, {Size = UDim2.new(1, 0, 0, TK_CARD_COLLAPSED)}):Play()
 		TK_Stop()
 	end
 end)
@@ -1636,7 +1586,7 @@ end)
 -- =============================================
 
 -- ----- SPEED -----
-local Speed_Multiplicador = 0.8
+local Speed_Multiplicador = 0.3
 local Speed_Connection    = nil
 
 local function Speed_Start()
@@ -1651,10 +1601,7 @@ local function Speed_Start()
 end
 
 local function Speed_Stop()
-	if Speed_Connection then
-		Speed_Connection:Disconnect()
-		Speed_Connection = nil
-	end
+	if Speed_Connection then Speed_Connection:Disconnect(); Speed_Connection = nil end
 end
 
 spdHit.MouseButton1Click:Connect(function()
@@ -1686,10 +1633,7 @@ local function InfJump_Start()
 end
 
 local function InfJump_Stop()
-	if InfJump_Connection then
-		InfJump_Connection:Disconnect()
-		InfJump_Connection = nil
-	end
+	if InfJump_Connection then InfJump_Connection:Disconnect(); InfJump_Connection = nil end
 end
 
 ijHit.MouseButton1Click:Connect(function()
@@ -1715,25 +1659,18 @@ local function NoClip_Start()
 		local char = Player.Character
 		if char then
 			for _, part in pairs(char:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = false
-				end
+				if part:IsA("BasePart") then part.CanCollide = false end
 			end
 		end
 	end)
 end
 
 local function NoClip_Stop()
-	if NoClip_Connection then
-		NoClip_Connection:Disconnect()
-		NoClip_Connection = nil
-	end
+	if NoClip_Connection then NoClip_Connection:Disconnect(); NoClip_Connection = nil end
 	local char = Player.Character
 	if char then
 		for _, part in pairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = true
-			end
+			if part:IsA("BasePart") then part.CanCollide = true end
 		end
 	end
 end
@@ -1776,7 +1713,7 @@ local MiniLabel = Instance.new("TextLabel")
 MiniLabel.Size = UDim2.new(1, -50, 1, 0)
 MiniLabel.Position = UDim2.new(0, 16, 0, 0)
 MiniLabel.BackgroundTransparency = 1
-MiniLabel.Text = "⚡ Anxiie Scripts"
+MiniLabel.Text = "Anxiie Scripts"
 MiniLabel.TextColor3 = Colors.TextPrimary
 MiniLabel.TextSize = 13
 MiniLabel.Font = Enum.Font.GothamBold
@@ -1835,7 +1772,7 @@ MakeDraggable(MainFrame, TitleBar)
 MakeDraggable(MiniBar, MiniBar)
 
 -- =====================
---   POSIÇÕES (lado esquerdo da tela)
+--   POSIÇÕES
 -- =====================
 local POS_CENTER     = UDim2.new(0, 16, 0.5, -GUI_H/2)
 local POS_OFFSCREEN  = UDim2.new(-1, -GUI_W, 0.5, -GUI_H/2)
@@ -1847,7 +1784,6 @@ local MINI_OFFSCREEN = UDim2.new(-1, -200, 0.5, -21)
 -- =====================
 local function Minimize()
 	IsMinimized = true
-	local currentPos = MainFrame.Position
 	TweenService:Create(MainFrame, SlowTween, {Position = POS_OFFSCREEN}):Play()
 	task.delay(0.35, function()
 		MainFrame.Visible = false
@@ -1876,35 +1812,16 @@ MaxBtn.MouseButton1Click:Connect(Maximize)
 -- =====================
 TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
 
-print("[Anxiee Scripts] Carregado com sucesso! | Aimbot V7 + Slider | ESP | Teleport Kill V2 + Slider Distância | Player | GUI Responsiva + Scroll")
+print("[Anxiee Scripts] Carregado! | Aimbot V7 | ESP + Eggs 3D (Part+Mesh+Highlight Dourado) | Teleport Kill V2 | Player")
 
 -- =============================================
 --   PERSISTÊNCIA DE TELEPORTE
---   Mantém o script funcionando ao trocar
---   de sub-place dentro do mesmo jogo (GameId)
 -- =============================================
---
---  Como funciona:
---  1. O script detecta quando o Roblox vai
---     teleportar o player para um sub-place.
---  2. Usa queue_on_teleport (Synapse X, KRNL,
---     Fluxus, etc.) para re-executar o script
---     automaticamente após o teleporte.
---  3. O script deve ser salvo como:
---       "AnxieeScripts.lua"
---     na pasta workspace do seu executor.
---     Assim ele é relido e re-executado após
---     cada teleporte sem intervenção manual.
---  4. Se o executor não suportar essas funções,
---     uma notificação pede para re-executar.
--- =============================================
-
 local PERSIST_FILENAME = "AnxieeScripts.lua"
 
 local function ShowRerunNotification()
-	-- Pequena notificação pedindo re-execução manual
 	task.spawn(function()
-		task.wait(2.5) -- aguarda o novo place carregar
+		task.wait(2.5)
 		local ok, pg = pcall(function()
 			return Players.LocalPlayer:WaitForChild("PlayerGui", 10)
 		end)
@@ -1978,25 +1895,19 @@ local function ShowRerunNotification()
 end
 
 Players.LocalPlayer.OnTeleport:Connect(function(teleportState)
-	-- Detecta início de teleporte para sub-place
 	if teleportState == Enum.TeleportState.RequestedFromServer
 		or teleportState == Enum.TeleportState.InProgress then
 
 		task.spawn(function()
-			-- Verifica se queue_on_teleport está disponível (Synapse X, KRNL, Fluxus, etc.)
 			if typeof(queue_on_teleport) == "function" then
-				-- Tenta ler o script salvo no workspace do executor
 				local ok, src = pcall(function()
 					return readfile(PERSIST_FILENAME)
 				end)
 
 				if ok and src and #src > 500 then
-					-- Re-executa o script salvo após o teleporte
 					queue_on_teleport(src)
 				else
-					-- Arquivo não encontrado: tenta salvar agora para uso futuro
 					pcall(function()
-						-- Notificação mínima via queue para avisar sobre re-execução
 						queue_on_teleport([[
 task.wait(2.5)
 local ts = game:GetService("TweenService")
@@ -2015,65 +1926,34 @@ task.delay(6,function() ts:Create(f,TweenInfo.new(0.4,Enum.EasingStyle.Quart,Enu
 					end)
 				end
 			else
-				-- Executor não suporta queue_on_teleport
-				-- Exibe notificação no novo place pedindo re-execução
 				ShowRerunNotification()
 			end
 		end)
 	end
 end)
 
--- Dica: salve este script como "AnxieeScripts.lua" na pasta workspace
--- do seu executor para que o queue_on_teleport funcione automaticamente.
-
 -- =============================================
---   RECONEXÃO APÓS RESPAWN / TROCA DE MAPA
---   Reinicializa todas as features ativas
---   quando o personagem renasce (spawn novo mapa)
+--   RECONEXÃO APÓS RESPAWN
 -- =============================================
 Player.CharacterAdded:Connect(function()
-	-- Aguarda o personagem e HumanoidRootPart carregarem
 	task.wait(1.5)
 
-	-- Aimbot: reinicia se estava ativo
 	if AimbotEnabled then
-		pcall(Aimbot_Stop)
-		task.wait(0.1)
-		pcall(Aimbot_Start)
+		pcall(Aimbot_Stop); task.wait(0.1); pcall(Aimbot_Start)
 	end
-
-	-- ESP: reinicia conexão se estava ativo
 	if ESPEnabled then
-		pcall(ESP_Stop)
-		task.wait(0.1)
-		pcall(ESP_Start)
+		pcall(ESP_Stop); task.wait(0.1); pcall(ESP_Start)
 	end
-
-	-- Speed: reconecta heartbeat se estava ativo
 	if SpeedEnabled then
-		pcall(Speed_Stop)
-		task.wait(0.1)
-		pcall(Speed_Start)
+		pcall(Speed_Stop); task.wait(0.1); pcall(Speed_Start)
 	end
-
-	-- Inf Jump: reconecta JumpRequest se estava ativo
 	if InfJumpEnabled then
-		pcall(InfJump_Stop)
-		task.wait(0.1)
-		pcall(InfJump_Start)
+		pcall(InfJump_Stop); task.wait(0.1); pcall(InfJump_Start)
 	end
-
-	-- No Clip: reconecta Stepped se estava ativo
 	if NoClipEnabled then
-		pcall(NoClip_Stop)
-		task.wait(0.1)
-		pcall(NoClip_Start)
+		pcall(NoClip_Stop); task.wait(0.1); pcall(NoClip_Start)
 	end
-
-	-- Teleport Kill: reinicia se estava ativo
 	if TeleportKillEnabled then
-		pcall(TK_Stop)
-		task.wait(0.1)
-		pcall(TK_Start)
+		pcall(TK_Stop); task.wait(0.1); pcall(TK_Start)
 	end
 end)
