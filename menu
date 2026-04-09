@@ -1,7 +1,7 @@
 -- GodMode GUI | Luau Script
 -- Dark Mode | Tabs | Bordas Arredondadas | Minimizar/Maximizar
 -- Compatível com Roblox Mobile
--- AIMBOT V7 - Mira travada + acompanha movimento + FOV centralizado
+-- AIMBOT V7 - Silent Aim (sem FOV, mira no inimigo mais próximo, ignora paredes)
 -- ATUALIZADO: Slider de Smoothness + GUI com prioridade máxima
 
 local Players = game:GetService("Players")
@@ -673,15 +673,15 @@ local PagePlayer   = CreatePage("PLAYER")
 local PageSettings = CreatePage("SETTINGS")
 
 -- ============  MAIN  ============
+-- Aimbot card: só toggle + smoothness (sem FOV, sem círculo)
 local AIMBOT_CARD_COLLAPSED = 58
-local AIMBOT_CARD_EXPANDED  = 152
+local AIMBOT_CARD_EXPANDED  = 106
 local gmCard, gmStroke = CreateCard(PageMain, 1, AIMBOT_CARD_COLLAPSED)
 gmCard.ClipsDescendants = true
 local gmSub = AddCardInfo(gmCard, "🎯", Colors.Accent, "Aimbot", "OFF")
 local gmBG, gmKnob, gmHit = AddToggle(gmCard, 0.5)
 
 local AimbotSmoothnessSlider = CreateSlider(gmCard, 0.75, 1.0, 1.0, "Smoothness:", 64)
-local AimbotFOVSlider        = CreateSlider(gmCard, 50, 300, 150, "FOV:", 106, "%d")
 
 -- =============================================
 -- Card ESP: Colapsado 58px | Expandido 158px
@@ -766,7 +766,7 @@ local infoTitle = Instance.new("TextLabel")
 infoTitle.Size = UDim2.new(1, -20, 0, 24)
 infoTitle.Position = UDim2.new(0, 14, 0, 10)
 infoTitle.BackgroundTransparency = 1
-infoTitle.Text = "Rivals Script  v1.4"
+infoTitle.Text = "Rivals Script  v1.5"
 infoTitle.TextColor3 = Colors.TextPrimary
 infoTitle.TextSize = 13
 infoTitle.Font = Enum.Font.GothamBold
@@ -878,25 +878,17 @@ tabSettings.MouseButton1Click:Connect(function() SwitchTab("SETTINGS") end)
 SwitchTab("MAIN")
 
 -- =============================================
---   AIMBOT V7
+--   AIMBOT V7 - SILENT AIM
+--   Mira no inimigo mais próximo (sem FOV)
+--   Ignora paredes, sempre ativo quando ligado
 -- =============================================
 local AimSettings = {
-	FOV        = 150,
+	Enabled    = false,
 	Smoothness = 1.0,
 	TargetPart = "Head",
 	TeamCheck  = true,
-	WallCheck  = true,
+	WallCheck  = false,  -- Desativado: funciona através de paredes
 }
-
-local Aimbot_ScreenGui    = nil
-local Aimbot_Active       = false
-local Aimbot_LockedTarget = nil
-local Aimbot_InputConn    = nil
-
-local function GetScreenCenter()
-	local cam = workspace.CurrentCamera
-	return Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
-end
 
 local function Aimbot_GetVM()
 	local vmFolder = workspace:FindFirstChild("ViewModels")
@@ -908,143 +900,70 @@ local function Aimbot_GetVM()
 	return nil
 end
 
-local function Aimbot_IsVisible(part, char)
-	local cam = workspace.CurrentCamera
-	local ray = RaycastParams.new()
-	ray.FilterType = Enum.RaycastFilterType.Exclude
-	ray.FilterDescendantsInstances = {Player.Character, cam, workspace:FindFirstChild("ViewModels")}
-	local origin    = cam.CFrame.Position
-	local direction = part.Position - origin
-	local res = workspace:Raycast(origin, direction, ray)
-	return res and res.Instance:IsDescendantOf(char)
-end
-
-local function Aimbot_InFOV(part)
-	local cam = workspace.CurrentCamera
-	local pos, onScreen = cam:WorldToViewportPoint(part.Position)
-	if not onScreen then return false, math.huge end
-	local screenPos = Vector2.new(pos.X, pos.Y)
-	local dist = (screenPos - GetScreenCenter()).Magnitude
-	return dist <= AimSettings.FOV, dist
-end
-
-local AIMBOT_MAX_DISTANCE_STUDS = 200 * 3.57
-
-local function Aimbot_GetTarget()
-	local target, shortest = nil, AimSettings.FOV
+local function Aimbot_GetClosestEnemy()
+	local target = nil
+	local shortestDistance = math.huge
 	local myTeam = Player:GetAttribute("TeamID")
-	local myChar = Player.Character
-	local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	local cam    = workspace.CurrentCamera
+	local camPos = cam.CFrame.Position
+
 	for _, p in pairs(Players:GetPlayers()) do
 		if p ~= Player and p.Character then
 			if not AimSettings.TeamCheck or p:GetAttribute("TeamID") ~= myTeam then
-				local part = p.Character:FindFirstChild(AimSettings.TargetPart)
-				local hum  = p.Character:FindFirstChild("Humanoid")
-				if part and hum and hum.Health > 0 then
-					if myHRP then
-						local studs = (part.Position - myHRP.Position).Magnitude
-						if studs > AIMBOT_MAX_DISTANCE_STUDS then continue end
-					end
-					local inFOV, dist = Aimbot_InFOV(part)
-					if inFOV and dist < shortest then
-						if not AimSettings.WallCheck or Aimbot_IsVisible(part, p.Character) then
-							target   = part
-							shortest = dist
-						end
+				local part     = p.Character:FindFirstChild(AimSettings.TargetPart)
+				local humanoid = p.Character:FindFirstChild("Humanoid")
+
+				if part and humanoid and humanoid.Health > 0 then
+					local distance = (part.Position - camPos).Magnitude
+					if distance < shortestDistance then
+						target           = part
+						shortestDistance = distance
 					end
 				end
 			end
 		end
 	end
+
 	return target
 end
 
-local function Aimbot_IsTargetValid(part)
-	if not part or not part.Parent then return false end
-	local char = part.Parent
-	if not char then return false end
-	local hum = char:FindFirstChild("Humanoid")
-	if not hum or hum.Health <= 0 then return false end
-	local inFOV, _ = Aimbot_InFOV(part)
-	return inFOV
-end
-
 local function Aimbot_Start()
-	Aimbot_Active = true
-
-	if Aimbot_ScreenGui then Aimbot_ScreenGui:Destroy() end
-	Aimbot_ScreenGui = Instance.new("ScreenGui")
-	Aimbot_ScreenGui.Name = "Aimbot_FOV_V7"
-	Aimbot_ScreenGui.ResetOnSpawn = false
-	Aimbot_ScreenGui.IgnoreGuiInset = true
-	Aimbot_ScreenGui.DisplayOrder = 999999998
-	Aimbot_ScreenGui.Parent = PlayerGui
-
-	local fovFrame = Instance.new("Frame")
-	fovFrame.Name = "FOVFrame"
-	fovFrame.Size = UDim2.new(0, AimSettings.FOV * 2, 0, AimSettings.FOV * 2)
-	fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-	fovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-	fovFrame.BackgroundTransparency = 1
-	fovFrame.ZIndex = 10
-	fovFrame.Parent = Aimbot_ScreenGui
-
-	local uiStroke = Instance.new("UIStroke")
-	uiStroke.Name = "FOVStroke"
-	uiStroke.Color = Color3.fromRGB(255, 255, 255)
-	uiStroke.Thickness = 2
-	uiStroke.Parent = fovFrame
-	Instance.new("UICorner", fovFrame).CornerRadius = UDim.new(1, 0)
-
+	AimSettings.Enabled = true
 	RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
-		if not Aimbot_Active then return end
+		if not AimSettings.Enabled then return end
 
 		AimSettings.Smoothness = AimbotSmoothnessSlider.GetValue()
-		AimSettings.FOV        = AimbotFOVSlider.GetValue()
-		fovFrame.Size = UDim2.new(0, AimSettings.FOV * 2, 0, AimSettings.FOV * 2)
 
 		local cam    = workspace.CurrentCamera
-		local stroke = fovFrame:FindFirstChild("FOVStroke")
+		local target = Aimbot_GetClosestEnemy()
 
-		if Aimbot_LockedTarget then
-			if not Aimbot_IsTargetValid(Aimbot_LockedTarget) then
-				Aimbot_LockedTarget = nil
-				if Aimbot_InputConn then Aimbot_InputConn:Disconnect(); Aimbot_InputConn = nil end
-			end
-		end
-
-		if not Aimbot_LockedTarget then Aimbot_LockedTarget = Aimbot_GetTarget() end
-
-		if Aimbot_LockedTarget then
-			local targetPos = Aimbot_LockedTarget.Position
+		if target then
+			local targetPos = target.Position
 			local lookCF    = CFrame.new(cam.CFrame.Position, targetPos)
+
+			-- 1. Trava a câmera no alvo
 			cam.CFrame = cam.CFrame:Lerp(lookCF, AimSettings.Smoothness)
 
-			if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-				local hrp      = Player.Character.HumanoidRootPart
-				local flatLook = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
-				hrp.CFrame     = hrp.CFrame:Lerp(CFrame.new(hrp.Position, flatLook), AimSettings.Smoothness)
-			end
-
+			-- 2. Sincroniza a ViewModel (braços)
 			local vm = Aimbot_GetVM()
 			if vm then
 				local vmHRP = vm:FindFirstChild("HumanoidRootPart")
 				if vmHRP then vmHRP.CFrame = cam.CFrame end
 			end
 
-			if stroke then stroke.Color = Color3.fromRGB(255, 50, 50) end
-		else
-			if stroke then stroke.Color = Color3.fromRGB(255, 255, 255) end
+			-- 3. Sincroniza o corpo real (rotação horizontal)
+			if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+				local hrp      = Player.Character.HumanoidRootPart
+				local flatLook = Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z)
+				hrp.CFrame     = hrp.CFrame:Lerp(CFrame.new(hrp.Position, flatLook), AimSettings.Smoothness)
+			end
 		end
 	end)
 end
 
 local function Aimbot_Stop()
-	Aimbot_Active = false
-	Aimbot_LockedTarget = nil
-	if Aimbot_InputConn then Aimbot_InputConn:Disconnect(); Aimbot_InputConn = nil end
+	AimSettings.Enabled = false
 	pcall(function() RunService:UnbindFromRenderStep("AimbotUpdate") end)
-	if Aimbot_ScreenGui then Aimbot_ScreenGui:Destroy(); Aimbot_ScreenGui = nil end
 end
 
 gmHit.MouseButton1Click:Connect(function()
@@ -1072,15 +991,11 @@ end)
 local EGG_MESH_ID = "rbxassetid://1527559"
 local EGG_COLOR   = "White"
 
--- Cria o ovo 3D + chams dourado na cabeça do inimigo
 local function EggESP_CreateForCharacter(character)
 	local head = character:FindFirstChild("Head")
 	if not head then return end
-
-	-- Evita duplicatas
 	if character:FindFirstChild("EggESP") then return end
 
-	-- 1. Part do Ovo
 	local egg = Instance.new("Part")
 	egg.Name       = "EggESP"
 	egg.Size       = Vector3.new(1, 1, 1)
@@ -1094,23 +1009,20 @@ local function EggESP_CreateForCharacter(character)
 	mesh.MeshId   = EGG_MESH_ID
 	mesh.Scale    = Vector3.new(1.5, 1.5, 1.5)
 
-	-- Weld: prende o ovo na cabeça
 	local weld = Instance.new("Weld", egg)
 	weld.Part0 = head
 	weld.Part1 = egg
 	weld.C0    = CFrame.new(0, 1.0, 0)
 
-	-- 2. Highlight (Chams - ver através da parede, borda dourada)
 	local highlight = Instance.new("Highlight")
 	highlight.Name                = "EggHighlight"
 	highlight.FillColor           = Color3.fromRGB(255, 255, 255)
-	highlight.OutlineColor        = Color3.fromRGB(255, 215, 0) -- Dourado
+	highlight.OutlineColor        = Color3.fromRGB(255, 215, 0)
 	highlight.FillTransparency    = 0.4
 	highlight.OutlineTransparency = 0
 	highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Parent              = egg
 
-	-- 3. BillboardGui (sem texto, mantido para uso futuro)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name        = "EggTag"
 	billboard.Size        = UDim2.new(0, 50, 0, 50)
@@ -1119,14 +1031,12 @@ local function EggESP_CreateForCharacter(character)
 	billboard.Parent      = egg
 end
 
--- Remove o ovo de um character específico
 local function EggESP_RemoveFromCharacter(character)
 	if not character then return end
 	local egg = character:FindFirstChild("EggESP")
 	if egg then egg:Destroy() end
 end
 
--- Remove ovos de todos os inimigos (chamado ao desligar)
 local function EggESP_RemoveAll()
 	for _, p in pairs(Players:GetPlayers()) do
 		if p ~= Player and p.Character then
@@ -1136,9 +1046,7 @@ local function EggESP_RemoveAll()
 end
 
 -- =============================================
---   ESP DEFINITIVO - METROS + FILTRO TIME
---   + TRACERS NO NICKNAME (BILLBOARD)
---   + EGGS 3D (Part+Mesh+Weld+Highlight dourado)
+--   ESP DEFINITIVO
 -- =============================================
 local Camera = workspace.CurrentCamera
 
@@ -1174,13 +1082,11 @@ local function ESP_GetDistanceInMeters(p1, p2)
 end
 
 local function ESP_CleanupPlayer(p)
-	-- Limpa tracer (line)
 	if ESP_Tracers[p.Name] then
 		pcall(function() ESP_Tracers[p.Name].Visible = false end)
 		pcall(function() ESP_Tracers[p.Name]:Remove() end)
 		ESP_Tracers[p.Name] = nil
 	end
-	-- Limpa billboard de nome/distância
 	if p.Character then
 		local head = p.Character:FindFirstChild("Head")
 		if head then
@@ -1188,7 +1094,6 @@ local function ESP_CleanupPlayer(p)
 			if b then b:Destroy() end
 		end
 	end
-	-- Limpa Box
 	if ESP_Boxes[p.Name] then
 		pcall(function() ESP_Boxes[p.Name]:Destroy() end)
 		ESP_Boxes[p.Name] = nil
@@ -1200,7 +1105,6 @@ local function ESP_CleanupPlayer(p)
 			if bx then bx:Destroy() end
 		end
 	end
-	-- Limpa Chams
 	if ESP_Chams[p.Name] then
 		pcall(function() ESP_Chams[p.Name]:Destroy() end)
 		ESP_Chams[p.Name] = nil
@@ -1209,7 +1113,6 @@ local function ESP_CleanupPlayer(p)
 		local hl = p.Character:FindFirstChild("Chams_Highlight")
 		if hl then hl:Destroy() end
 	end
-	-- Limpa Egg
 	if p.Character then
 		EggESP_RemoveFromCharacter(p.Character)
 	end
@@ -1262,7 +1165,7 @@ local function ESP_Start()
 					local head = p.Character.Head
 					local hrp  = p.Character.HumanoidRootPart
 
-					-- ======== CHAMS ========
+					-- CHAMS
 					if showChams then
 						if not ESP_Chams[p.Name] or not ESP_Chams[p.Name].Parent then
 							local old = p.Character:FindFirstChild("Chams_Highlight")
@@ -1286,7 +1189,7 @@ local function ESP_Start()
 						if old then old:Destroy() end
 					end
 
-					-- ======== BOX ESP ========
+					-- BOX ESP
 					if showBox then
 						local existingBox = hrp:FindFirstChild("ESP_Box")
 						if not existingBox then
@@ -1324,9 +1227,7 @@ local function ESP_Start()
 						if bx then bx:Destroy() end
 					end
 
-					-- ======== EGGS ESP ========
-					-- Ativa: coloca ovo 3D + highlight dourado na cabeça do inimigo
-					-- Desativa: remove completamente
+					-- EGGS ESP
 					if showEggs then
 						if not p.Character:FindFirstChild("EggESP") then
 							EggESP_CreateForCharacter(p.Character)
@@ -1335,7 +1236,7 @@ local function ESP_Start()
 						EggESP_RemoveFromCharacter(p.Character)
 					end
 
-					-- ======== LINE + NAME + DISTANCE ========
+					-- LINE + NAME + DISTANCE
 					local billboardWorldPos = head.Position + ESP_Settings.BillboardOffset
 					local vector, onScreen  = Camera:WorldToViewportPoint(billboardWorldPos)
 
@@ -1351,7 +1252,6 @@ local function ESP_Start()
 						local isVisible    = not ray or ray.Instance:IsDescendantOf(p.Character)
 						local currentColor = isVisible and ESP_Settings.VisibleColor or ESP_Settings.HiddenColor
 
-						-- LINE
 						if showLine then
 							if not ESP_Tracers[p.Name] then
 								local line          = Drawing.new("Line")
@@ -1370,7 +1270,6 @@ local function ESP_Start()
 							end
 						end
 
-						-- NAME + DISTANCE
 						if showName or showDistance then
 							local b = head:FindFirstChild("EnemyBillboard")
 							if not b then
@@ -1812,7 +1711,7 @@ MaxBtn.MouseButton1Click:Connect(Maximize)
 -- =====================
 TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
 
-print("[Anxiee Scripts] Carregado! | Aimbot V7 | ESP + Eggs 3D (Part+Mesh+Highlight Dourado) | Teleport Kill V2 | Player")
+print("[Anxiee Scripts] Carregado! | Aimbot V7 Silent Aim | ESP + Eggs 3D | Teleport Kill V2 | Player")
 
 -- =============================================
 --   PERSISTÊNCIA DE TELEPORTE
