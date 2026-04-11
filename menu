@@ -2,15 +2,320 @@
 -- Dark Mode | Tabs | Bordas Arredondadas | Minimizar/Maximizar
 -- Compatível com Roblox Mobile
 -- AIMBOT V7 - Mira travada + acompanha movimento + FOV centralizado
--- ATUALIZADO: Slider de Smoothness + GUI com prioridade máxima
+-- ATUALIZADO v1.8: Neve azul neon, botão + maximizar, crosshair RGB rainbow
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
 
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
+local CoreGui = game:GetService("CoreGui")
+
+-- =============================================
+--   CROSSHAIR ROTATIVO COM PULSO + RGB RAINBOW
+-- =============================================
+local CrossSG    = nil
+local CrossConn  = nil
+local CrossAngle = 0
+
+local PULSE_MIN  = 6
+local PULSE_MAX  = 16
+local PULSE_SPD  = 1.4
+local LINE_LEN   = 14
+local LINE_THICK = 2
+local DOT_COLOR  = Color3.fromRGB(255, 255, 255)
+local ROT_SPEED  = 80
+
+-- Função para gerar cor rainbow suave a partir de um tempo
+local function RainbowColor(t)
+	local h = (t * 0.18) % 1  -- velocidade bem suave
+	local r, g, b
+	local i = math.floor(h * 6)
+	local f = h * 6 - i
+	local q = 1 - f
+	i = i % 6
+	if i == 0 then r, g, b = 1, f, 0
+	elseif i == 1 then r, g, b = q, 1, 0
+	elseif i == 2 then r, g, b = 0, 1, f
+	elseif i == 3 then r, g, b = 0, q, 1
+	elseif i == 4 then r, g, b = f, 0, 1
+	elseif i == 5 then r, g, b = 1, 0, q
+	end
+	return Color3.new(r, g, b)
+end
+
+local function Crosshair_Start()
+	if CrossSG then CrossSG:Destroy() end
+	CrossSG = Instance.new("ScreenGui")
+	CrossSG.Name           = "CrosshairFX"
+	CrossSG.ResetOnSpawn   = false
+	CrossSG.IgnoreGuiInset = true
+	CrossSG.DisplayOrder   = 999999985
+	CrossSG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	local ok = pcall(function() CrossSG.Parent = CoreGui end)
+	if not ok then CrossSG.Parent = PlayerGui end
+
+	local container = Instance.new("Frame")
+	container.Name                   = "CrossContainer"
+	container.Size                   = UDim2.new(0, 100, 0, 100)
+	container.AnchorPoint            = Vector2.new(0.5, 0.5)
+	container.Position               = UDim2.new(0.5, 0, 0.5, 0)
+	container.BackgroundTransparency = 1
+	container.ZIndex                 = 5
+	container.Parent                 = CrossSG
+
+	local lU = Instance.new("Frame", container)
+	lU.Size             = UDim2.new(0, LINE_THICK, 0, LINE_LEN)
+	lU.AnchorPoint      = Vector2.new(0.5, 1)
+	lU.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+	lU.BorderSizePixel  = 0
+	lU.ZIndex           = 6
+	Instance.new("UICorner", lU).CornerRadius = UDim.new(1, 0)
+
+	local lD = Instance.new("Frame", container)
+	lD.Size             = UDim2.new(0, LINE_THICK, 0, LINE_LEN)
+	lD.AnchorPoint      = Vector2.new(0.5, 0)
+	lD.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+	lD.BorderSizePixel  = 0
+	lD.ZIndex           = 6
+	Instance.new("UICorner", lD).CornerRadius = UDim.new(1, 0)
+
+	local lL = Instance.new("Frame", container)
+	lL.Size             = UDim2.new(0, LINE_LEN, 0, LINE_THICK)
+	lL.AnchorPoint      = Vector2.new(1, 0.5)
+	lL.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+	lL.BorderSizePixel  = 0
+	lL.ZIndex           = 6
+	Instance.new("UICorner", lL).CornerRadius = UDim.new(1, 0)
+
+	local lR = Instance.new("Frame", container)
+	lR.Size             = UDim2.new(0, LINE_LEN, 0, LINE_THICK)
+	lR.AnchorPoint      = Vector2.new(0, 0.5)
+	lR.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
+	lR.BorderSizePixel  = 0
+	lR.ZIndex           = 6
+	Instance.new("UICorner", lR).CornerRadius = UDim.new(1, 0)
+
+	local dot = Instance.new("Frame", container)
+	dot.Size             = UDim2.new(0, 4, 0, 4)
+	dot.AnchorPoint      = Vector2.new(0.5, 0.5)
+	dot.Position         = UDim2.new(0.5, 0, 0.5, 0)
+	dot.BackgroundColor3 = DOT_COLOR
+	dot.BorderSizePixel  = 0
+	dot.ZIndex           = 7
+	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+
+	CrossAngle = 0
+	local pulseT  = 0
+	local rainbowT = 0
+
+	CrossConn = RunService.RenderStepped:Connect(function(dt)
+		CrossAngle = (CrossAngle + ROT_SPEED * dt) % 360
+		container.Rotation = CrossAngle
+
+		pulseT = pulseT + dt * PULSE_SPD
+		local gap = PULSE_MIN + (PULSE_MAX - PULSE_MIN) * ((math.sin(pulseT * math.pi * 2) + 1) / 2)
+
+		-- Rainbow suave
+		rainbowT = rainbowT + dt
+		local rainbowColor = RainbowColor(rainbowT)
+		lU.BackgroundColor3 = rainbowColor
+		lD.BackgroundColor3 = rainbowColor
+		lL.BackgroundColor3 = rainbowColor
+		lR.BackgroundColor3 = rainbowColor
+
+		local cx, cy = 0.5, 0.5
+		lU.Position = UDim2.new(cx, 0, cy, -(gap))
+		lD.Position = UDim2.new(cx, 0, cy, gap)
+		lL.Position = UDim2.new(cx, -(gap), cy, 0)
+		lR.Position = UDim2.new(cx, gap, cy, 0)
+	end)
+end
+
+local function Crosshair_Stop()
+	if CrossConn then CrossConn:Disconnect(); CrossConn = nil end
+	if CrossSG   then CrossSG:Destroy();     CrossSG   = nil end
+end
+
+-- =============================================
+--   DARK MAP
+-- =============================================
+local DarkMap_OriginalValues = {}
+local DarkMap_Active = false
+
+local function DarkMap_Start()
+	if DarkMap_Active then return end
+	DarkMap_Active = true
+
+	DarkMap_OriginalValues = {
+		Ambient        = Lighting.Ambient,
+		OutdoorAmbient = Lighting.OutdoorAmbient,
+		Brightness     = Lighting.Brightness,
+		FogEnd         = Lighting.FogEnd,
+		FogColor       = Lighting.FogColor,
+	}
+
+	local old = Lighting:FindFirstChild("DarkFX_CC")
+	if old then old:Destroy() end
+
+	local cc = Instance.new("ColorCorrectionEffect")
+	cc.Name        = "DarkFX_CC"
+	cc.Brightness  = -0.55
+	cc.Contrast    = 0.2
+	cc.Saturation  = -0.3
+	cc.TintColor   = Color3.fromRGB(60, 60, 100)
+	cc.Parent      = Lighting
+
+	TweenService:Create(Lighting, TweenInfo.new(1.2, Enum.EasingStyle.Sine), {
+		Ambient        = Color3.fromRGB(0, 0, 0),
+		OutdoorAmbient = Color3.fromRGB(0, 0, 0),
+		Brightness     = 0,
+		FogEnd         = 60,
+		FogColor       = Color3.fromRGB(8, 8, 16),
+	}):Play()
+end
+
+local function DarkMap_Stop()
+	if not DarkMap_Active then return end
+	DarkMap_Active = false
+
+	local cc = Lighting:FindFirstChild("DarkFX_CC")
+	if cc then
+		TweenService:Create(cc, TweenInfo.new(1.0, Enum.EasingStyle.Sine), {Brightness = 0}):Play()
+		task.delay(1.1, function() if cc and cc.Parent then cc:Destroy() end end)
+	end
+	TweenService:Create(Lighting, TweenInfo.new(1.2, Enum.EasingStyle.Sine), {
+		Ambient        = DarkMap_OriginalValues.Ambient        or Color3.fromRGB(70,70,70),
+		OutdoorAmbient = DarkMap_OriginalValues.OutdoorAmbient or Color3.fromRGB(140,140,140),
+		Brightness     = DarkMap_OriginalValues.Brightness     or 1,
+		FogEnd         = DarkMap_OriginalValues.FogEnd         or 100000,
+		FogColor       = DarkMap_OriginalValues.FogColor       or Color3.fromRGB(191,191,191),
+	}):Play()
+end
+
+-- =============================================
+--   NEVE 2D — Azul Neon escuro igual à GUI
+-- =============================================
+local SnowSG     = nil
+local SnowConn   = nil
+local SnowFlakes = {}
+
+local SNOW_COUNT = 160
+
+-- Paleta de azul neon escuro (tom da GUI: rgb(99,102,241) e rgb(139,92,246))
+local SNOW_COLORS = {
+	Color3.fromRGB(99,  102, 241),  -- azul accent GUI
+	Color3.fromRGB(139, 92,  246),  -- roxo-azul glow GUI
+	Color3.fromRGB(80,  90,  230),  -- azul escuro neon
+	Color3.fromRGB(110, 120, 255),  -- azul claro neon
+	Color3.fromRGB(60,  70,  200),  -- azul bem escuro
+}
+
+local function Snow_NewFlake(parent, randomY)
+	local roll = math.random(1, 10)
+	local size
+	if roll <= 5 then
+		size = math.random(1, 2)
+	elseif roll <= 8 then
+		size = math.random(3, 4)
+	else
+		size = 5
+	end
+
+	local alpha   = math.random(50, 95) / 100  -- um pouco mais vísivel para o neon
+	local speedY  = math.random(25, 90)
+	local speedX  = math.random(-20, 20)
+	local spinSpd = math.random(-200, 200)
+	local startX  = math.random(0, 10000) / 10000
+	local startY  = randomY and (math.random(-20, 100) / 100) or (-size / 1080)
+
+	-- Escolhe cor aleatória da paleta neon
+	local chosenColor = SNOW_COLORS[math.random(1, #SNOW_COLORS)]
+
+	local flake = Instance.new("Frame")
+	flake.Size             = UDim2.new(0, size, 0, size)
+	flake.Position         = UDim2.new(startX, 0, startY, 0)
+	flake.BackgroundColor3 = chosenColor
+	flake.BackgroundTransparency = 1 - alpha
+	flake.BorderSizePixel  = 0
+	flake.ZIndex           = 3
+	flake.Parent           = parent
+	Instance.new("UICorner", flake).CornerRadius = UDim.new(1, 0)
+
+	return {
+		frame  = flake,
+		x      = startX,
+		y      = startY,
+		speedY = speedY,
+		speedX = speedX,
+		spin   = spinSpd,
+		rot    = math.random(0, 360),
+		size   = size,
+	}
+end
+
+local function Snow_Start()
+	if SnowSG then SnowSG:Destroy() end
+	SnowSG = Instance.new("ScreenGui")
+	SnowSG.Name           = "SnowFX"
+	SnowSG.ResetOnSpawn   = false
+	SnowSG.IgnoreGuiInset = true
+	SnowSG.DisplayOrder   = 999999980
+	local ok = pcall(function() SnowSG.Parent = CoreGui end)
+	if not ok then SnowSG.Parent = PlayerGui end
+
+	local overlay = Instance.new("Frame")
+	overlay.Size                   = UDim2.new(1, 0, 1, 0)
+	overlay.BackgroundColor3       = Color3.fromRGB(20, 20, 60)  -- overlay azul escuro sutil
+	overlay.BackgroundTransparency = 0.97
+	overlay.BorderSizePixel        = 0
+	overlay.ZIndex                 = 1
+	overlay.Parent                 = SnowSG
+
+	local container = Instance.new("Frame")
+	container.Size                   = UDim2.new(1, 0, 1, 0)
+	container.BackgroundTransparency = 1
+	container.BorderSizePixel        = 0
+	container.ZIndex                 = 2
+	container.ClipsDescendants       = true
+	container.Parent                 = SnowSG
+
+	SnowFlakes = {}
+	for i = 1, SNOW_COUNT do
+		local f = Snow_NewFlake(container, true)
+		table.insert(SnowFlakes, f)
+	end
+
+	SnowConn = RunService.RenderStepped:Connect(function(dt)
+		local vp   = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize or Vector2.new(1920, 1080)
+		local w, h = vp.X, vp.Y
+
+		for _, f in ipairs(SnowFlakes) do
+			f.y   = f.y + (f.speedY / h) * dt
+			f.x   = f.x + (f.speedX / w) * dt
+			f.rot = f.rot + f.spin * dt
+
+			if f.y > 1.02 then
+				f.y = -(f.size / h)
+				f.x = math.random(0, 10000) / 10000
+			end
+			if f.x > 1.02  then f.x = -(f.size / w) end
+			if f.x < -(f.size / w) then f.x = 1.01 end
+
+			f.frame.Position = UDim2.new(f.x, 0, f.y, 0)
+			f.frame.Rotation = f.rot
+		end
+	end)
+end
+
+local function Snow_Stop()
+	if SnowConn  then SnowConn:Disconnect();  SnowConn  = nil end
+	SnowFlakes = {}
+	if SnowSG    then SnowSG:Destroy();       SnowSG    = nil end
+end
 
 -- =====================
 --   VARIÁVEIS GLOBAIS
@@ -24,7 +329,6 @@ local AutoFarmEnabled     = false
 local AutoKillEnabled     = false
 local NotifEnabled        = false
 
--- PLAYER PAGE
 local SpeedEnabled        = false
 local InfJumpEnabled      = false
 local NoClipEnabled       = false
@@ -70,11 +374,11 @@ local REQUIRED_CREATOR_ID = 3461453
 
 if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	local ErrGui = Instance.new("ScreenGui")
-	ErrGui.Name          = "AnxieeWrongGame"
-	ErrGui.ResetOnSpawn  = false
+	ErrGui.Name           = "AnxieeWrongGame"
+	ErrGui.ResetOnSpawn   = false
 	ErrGui.IgnoreGuiInset = true
-	ErrGui.DisplayOrder  = 999999999
-	ErrGui.Parent        = PlayerGui
+	ErrGui.DisplayOrder   = 999999999
+	ErrGui.Parent         = PlayerGui
 
 	local ErrFrame = Instance.new("Frame")
 	ErrFrame.Size        = UDim2.new(0, 330, 0, 96)
@@ -167,7 +471,6 @@ end
 -- =====================
 --   SCREEN GUI
 -- =====================
-local CoreGui = game:GetService("CoreGui")
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Anxiee Scripts"
 ScreenGui.ResetOnSpawn = false
@@ -252,7 +555,7 @@ local SubLabel = Instance.new("TextLabel")
 SubLabel.Size = UDim2.new(0, 80, 1, 0)
 SubLabel.Position = UDim2.new(0, 34, 0, 14)
 SubLabel.BackgroundTransparency = 1
-SubLabel.Text = "Update 04/04/26 v1.5"
+SubLabel.Text = "Update 10/04/26 v1.8"
 SubLabel.TextColor3 = Colors.TextSecondary
 SubLabel.TextSize = 10
 SubLabel.Font = Enum.Font.Gotham
@@ -683,10 +986,6 @@ local gmBG, gmKnob, gmHit = AddToggle(gmCard, 0.5)
 local AimbotSmoothnessSlider = CreateSlider(gmCard, 0.75, 1.0, 1.0, "Smoothness:", 64)
 local AimbotFOVSlider        = CreateSlider(gmCard, 50, 300, 150, "FOV:", 106, "%d")
 
--- =============================================
--- Card ESP: Colapsado 58px | Expandido 158px
--- (3 linhas de checkboxes incluindo Eggs)
--- =============================================
 local ESP_CARD_COLLAPSED = 58
 local ESP_CARD_EXPANDED  = 158
 local spCard, spStroke = CreateCard(PageMain, 2, ESP_CARD_COLLAPSED)
@@ -714,21 +1013,13 @@ espOptLabel.TextXAlignment = Enum.TextXAlignment.Left
 espOptLabel.ZIndex = 12
 espOptLabel.Parent = spCard
 
--- Fila 1: Line | Box | Name   (y=83)
 local ESP_CB_Line     = CreateCheckbox(spCard, "Line",     true,  12,  83)
 local ESP_CB_Box      = CreateCheckbox(spCard, "Box",      false, 82,  83)
 local ESP_CB_Name     = CreateCheckbox(spCard, "Name",     true,  152, 83)
-
--- Fila 2: Distance | Chams   (y=108)
 local ESP_CB_Distance = CreateCheckbox(spCard, "Distance", true,  12,  108)
 local ESP_CB_Chams    = CreateCheckbox(spCard, "Chams",    false, 82,  108)
-
--- Fila 3: Eggs   (y=133)
 local ESP_CB_Eggs     = CreateCheckbox(spCard, "Eggs",     false, 12,  133)
 
--- =============================================
---   TELEPORT KILL CARD
--- =============================================
 local TK_CARD_COLLAPSED = 58
 local TK_CARD_EXPANDED  = 110
 local tkCard, tkStroke = CreateCard(PageMain, 3, TK_CARD_COLLAPSED)
@@ -766,7 +1057,7 @@ local infoTitle = Instance.new("TextLabel")
 infoTitle.Size = UDim2.new(1, -20, 0, 24)
 infoTitle.Position = UDim2.new(0, 14, 0, 10)
 infoTitle.BackgroundTransparency = 1
-infoTitle.Text = "Rivals Script  v1.4"
+infoTitle.Text = "Rivals Script  v1.8"
 infoTitle.TextColor3 = Colors.TextPrimary
 infoTitle.TextSize = 13
 infoTitle.Font = Enum.Font.GothamBold
@@ -778,7 +1069,7 @@ local infoSub = Instance.new("TextLabel")
 infoSub.Size = UDim2.new(1, -20, 0, 20)
 infoSub.Position = UDim2.new(0, 14, 0, 38)
 infoSub.BackgroundTransparency = 1
-infoSub.Text = "Aimbot  •  ESP  •  Teleport Kill  •  Player"
+infoSub.Text = "Aimbot  •  ESP  •  Teleport Kill  •  Player  •  Visual FX"
 infoSub.TextColor3 = Colors.TextSecondary
 infoSub.TextSize = 11
 infoSub.Font = Enum.Font.Gotham
@@ -1067,20 +1358,16 @@ gmHit.MouseButton1Click:Connect(function()
 end)
 
 -- =============================================
---   EGG ESP - Configurações
+--   EGG ESP
 -- =============================================
 local EGG_MESH_ID = "rbxassetid://1527559"
 local EGG_COLOR   = "White"
 
--- Cria o ovo 3D + chams dourado na cabeça do inimigo
 local function EggESP_CreateForCharacter(character)
 	local head = character:FindFirstChild("Head")
 	if not head then return end
-
-	-- Evita duplicatas
 	if character:FindFirstChild("EggESP") then return end
 
-	-- 1. Part do Ovo
 	local egg = Instance.new("Part")
 	egg.Name       = "EggESP"
 	egg.Size       = Vector3.new(1, 1, 1)
@@ -1094,23 +1381,20 @@ local function EggESP_CreateForCharacter(character)
 	mesh.MeshId   = EGG_MESH_ID
 	mesh.Scale    = Vector3.new(1.5, 1.5, 1.5)
 
-	-- Weld: prende o ovo na cabeça
 	local weld = Instance.new("Weld", egg)
 	weld.Part0 = head
 	weld.Part1 = egg
 	weld.C0    = CFrame.new(0, 1.0, 0)
 
-	-- 2. Highlight (Chams - ver através da parede, borda dourada)
 	local highlight = Instance.new("Highlight")
 	highlight.Name                = "EggHighlight"
 	highlight.FillColor           = Color3.fromRGB(255, 255, 255)
-	highlight.OutlineColor        = Color3.fromRGB(255, 215, 0) -- Dourado
+	highlight.OutlineColor        = Color3.fromRGB(255, 215, 0)
 	highlight.FillTransparency    = 0.4
 	highlight.OutlineTransparency = 0
 	highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.Parent              = egg
 
-	-- 3. BillboardGui (sem texto, mantido para uso futuro)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name        = "EggTag"
 	billboard.Size        = UDim2.new(0, 50, 0, 50)
@@ -1119,14 +1403,12 @@ local function EggESP_CreateForCharacter(character)
 	billboard.Parent      = egg
 end
 
--- Remove o ovo de um character específico
 local function EggESP_RemoveFromCharacter(character)
 	if not character then return end
 	local egg = character:FindFirstChild("EggESP")
 	if egg then egg:Destroy() end
 end
 
--- Remove ovos de todos os inimigos (chamado ao desligar)
 local function EggESP_RemoveAll()
 	for _, p in pairs(Players:GetPlayers()) do
 		if p ~= Player and p.Character then
@@ -1136,9 +1418,7 @@ local function EggESP_RemoveAll()
 end
 
 -- =============================================
---   ESP DEFINITIVO - METROS + FILTRO TIME
---   + TRACERS NO NICKNAME (BILLBOARD)
---   + EGGS 3D (Part+Mesh+Weld+Highlight dourado)
+--   ESP DEFINITIVO
 -- =============================================
 local Camera = workspace.CurrentCamera
 
@@ -1174,13 +1454,11 @@ local function ESP_GetDistanceInMeters(p1, p2)
 end
 
 local function ESP_CleanupPlayer(p)
-	-- Limpa tracer (line)
 	if ESP_Tracers[p.Name] then
 		pcall(function() ESP_Tracers[p.Name].Visible = false end)
 		pcall(function() ESP_Tracers[p.Name]:Remove() end)
 		ESP_Tracers[p.Name] = nil
 	end
-	-- Limpa billboard de nome/distância
 	if p.Character then
 		local head = p.Character:FindFirstChild("Head")
 		if head then
@@ -1188,7 +1466,6 @@ local function ESP_CleanupPlayer(p)
 			if b then b:Destroy() end
 		end
 	end
-	-- Limpa Box
 	if ESP_Boxes[p.Name] then
 		pcall(function() ESP_Boxes[p.Name]:Destroy() end)
 		ESP_Boxes[p.Name] = nil
@@ -1200,7 +1477,6 @@ local function ESP_CleanupPlayer(p)
 			if bx then bx:Destroy() end
 		end
 	end
-	-- Limpa Chams
 	if ESP_Chams[p.Name] then
 		pcall(function() ESP_Chams[p.Name]:Destroy() end)
 		ESP_Chams[p.Name] = nil
@@ -1209,7 +1485,6 @@ local function ESP_CleanupPlayer(p)
 		local hl = p.Character:FindFirstChild("Chams_Highlight")
 		if hl then hl:Destroy() end
 	end
-	-- Limpa Egg
 	if p.Character then
 		EggESP_RemoveFromCharacter(p.Character)
 	end
@@ -1262,7 +1537,6 @@ local function ESP_Start()
 					local head = p.Character.Head
 					local hrp  = p.Character.HumanoidRootPart
 
-					-- ======== CHAMS ========
 					if showChams then
 						if not ESP_Chams[p.Name] or not ESP_Chams[p.Name].Parent then
 							local old = p.Character:FindFirstChild("Chams_Highlight")
@@ -1286,7 +1560,6 @@ local function ESP_Start()
 						if old then old:Destroy() end
 					end
 
-					-- ======== BOX ESP ========
 					if showBox then
 						local existingBox = hrp:FindFirstChild("ESP_Box")
 						if not existingBox then
@@ -1324,9 +1597,6 @@ local function ESP_Start()
 						if bx then bx:Destroy() end
 					end
 
-					-- ======== EGGS ESP ========
-					-- Ativa: coloca ovo 3D + highlight dourado na cabeça do inimigo
-					-- Desativa: remove completamente
 					if showEggs then
 						if not p.Character:FindFirstChild("EggESP") then
 							EggESP_CreateForCharacter(p.Character)
@@ -1335,7 +1605,6 @@ local function ESP_Start()
 						EggESP_RemoveFromCharacter(p.Character)
 					end
 
-					-- ======== LINE + NAME + DISTANCE ========
 					local billboardWorldPos = head.Position + ESP_Settings.BillboardOffset
 					local vector, onScreen  = Camera:WorldToViewportPoint(billboardWorldPos)
 
@@ -1351,7 +1620,6 @@ local function ESP_Start()
 						local isVisible    = not ray or ray.Instance:IsDescendantOf(p.Character)
 						local currentColor = isVisible and ESP_Settings.VisibleColor or ESP_Settings.HiddenColor
 
-						-- LINE
 						if showLine then
 							if not ESP_Tracers[p.Name] then
 								local line          = Drawing.new("Line")
@@ -1370,7 +1638,6 @@ local function ESP_Start()
 							end
 						end
 
-						-- NAME + DISTANCE
 						if showName or showDistance then
 							local b = head:FindFirstChild("EnemyBillboard")
 							if not b then
@@ -1513,10 +1780,10 @@ local function TK_Start()
 		local enemyHRP = targetChar:FindFirstChild("HumanoidRootPart")
 		if not enemyHRP then return end
 
-		local dist        = TK_DistanceSlider.GetValue()
-		local enemyCF     = enemyHRP.CFrame
+		local dist         = TK_DistanceSlider.GetValue()
+		local enemyCF      = enemyHRP.CFrame
 		local behindOffset = enemyCF.LookVector * (-dist)
-		local targetPos   = enemyHRP.Position + behindOffset
+		local targetPos    = enemyHRP.Position + behindOffset
 
 		local newCFrame = CFrame.new(targetPos) * CFrame.Angles(0, math.atan2(-enemyCF.LookVector.X, -enemyCF.LookVector.Z), 0)
 
@@ -1584,8 +1851,6 @@ end)
 -- =============================================
 --   PLAYER PAGE - SPEED / INF JUMP / NO CLIP
 -- =============================================
-
--- ----- SPEED -----
 local Speed_Multiplicador = 0.3
 local Speed_Connection    = nil
 
@@ -1619,7 +1884,6 @@ spdHit.MouseButton1Click:Connect(function()
 	end
 end)
 
--- ----- INF JUMP -----
 local InfJump_Connection = nil
 
 local function InfJump_Start()
@@ -1651,7 +1915,6 @@ ijHit.MouseButton1Click:Connect(function()
 	end
 end)
 
--- ----- NO CLIP -----
 local NoClip_Connection = nil
 
 local function NoClip_Start()
@@ -1721,19 +1984,29 @@ MiniLabel.TextXAlignment = Enum.TextXAlignment.Left
 MiniLabel.ZIndex = 11
 MiniLabel.Parent = MiniBar
 
+-- =============================================
+-- BOTÃO MAXIMIZAR: ícone "+" em vez de "⤢"
+-- =============================================
 local MaxBtn = Instance.new("TextButton")
 MaxBtn.Size = UDim2.new(0, 30, 0, 30)
 MaxBtn.Position = UDim2.new(1, -38, 0.5, -15)
 MaxBtn.BackgroundColor3 = Colors.Surface
 MaxBtn.BorderSizePixel = 0
-MaxBtn.Text = "⤢"
+MaxBtn.Text = "+"
 MaxBtn.TextColor3 = Colors.TextPrimary
-MaxBtn.TextSize = 14
+MaxBtn.TextSize = 20
 MaxBtn.Font = Enum.Font.GothamBold
 MaxBtn.AutoButtonColor = false
 MaxBtn.ZIndex = 12
 MaxBtn.Parent = MiniBar
 Instance.new("UICorner", MaxBtn).CornerRadius = UDim.new(0, 8)
+
+MaxBtn.MouseEnter:Connect(function()
+	TweenService:Create(MaxBtn, FastTween, {BackgroundColor3 = Colors.SurfaceHover}):Play()
+end)
+MaxBtn.MouseLeave:Connect(function()
+	TweenService:Create(MaxBtn, FastTween, {BackgroundColor3 = Colors.Surface}):Play()
+end)
 
 -- =====================
 --   DRAG
@@ -1779,11 +2052,15 @@ local POS_OFFSCREEN  = UDim2.new(-1, -GUI_W, 0.5, -GUI_H/2)
 local MINI_CENTER    = UDim2.new(0, 16, 0.5, -21)
 local MINI_OFFSCREEN = UDim2.new(-1, -200, 0.5, -21)
 
--- =====================
---   MINIMIZAR / MAXIMIZAR
--- =====================
+-- =============================================
+--   MINIMIZAR / MAXIMIZAR + CONTROLE DOS FX
+-- =============================================
 local function Minimize()
 	IsMinimized = true
+
+	pcall(Snow_Stop)
+	pcall(DarkMap_Stop)
+
 	TweenService:Create(MainFrame, SlowTween, {Position = POS_OFFSCREEN}):Play()
 	task.delay(0.35, function()
 		MainFrame.Visible = false
@@ -1795,12 +2072,16 @@ end
 
 local function Maximize()
 	IsMinimized = false
+
 	TweenService:Create(MiniBar, SlowTween, {Position = MINI_OFFSCREEN}):Play()
 	task.delay(0.25, function()
 		MiniBar.Visible = false
 		MainFrame.Position = POS_OFFSCREEN
 		MainFrame.Visible = true
 		TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
+
+		pcall(Snow_Start)
+		pcall(DarkMap_Start)
 	end)
 end
 
@@ -1812,7 +2093,14 @@ MaxBtn.MouseButton1Click:Connect(Maximize)
 -- =====================
 TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
 
-print("[Anxiee Scripts] Carregado! | Aimbot V7 | ESP + Eggs 3D (Part+Mesh+Highlight Dourado) | Teleport Kill V2 | Player")
+-- =============================================
+--   ATIVA VISUAL FX AO INICIAR
+-- =============================================
+Crosshair_Start()
+DarkMap_Start()
+Snow_Start()
+
+print("[Anxiee Scripts] v1.8 | Crosshair RGB Rainbow | Neve Azul Neon | Botão + Maximizar")
 
 -- =============================================
 --   PERSISTÊNCIA DE TELEPORTE
@@ -1937,6 +2225,13 @@ end)
 -- =============================================
 Player.CharacterAdded:Connect(function()
 	task.wait(1.5)
+
+	pcall(Crosshair_Stop); task.wait(0.05); pcall(Crosshair_Start)
+
+	if not IsMinimized then
+		pcall(DarkMap_Stop); task.wait(0.05); pcall(DarkMap_Start)
+		pcall(Snow_Stop);    task.wait(0.05); pcall(Snow_Start)
+	end
 
 	if AimbotEnabled then
 		pcall(Aimbot_Stop); task.wait(0.1); pcall(Aimbot_Start)
