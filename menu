@@ -2,370 +2,15 @@
 -- Dark Mode | Tabs | Bordas Arredondadas | Minimizar/Maximizar
 -- Compatível com Roblox Mobile
 -- AIMBOT V7 - Mira travada + acompanha movimento + FOV centralizado
--- ATUALIZADO v1.9: Carregamento robusto para sistemas de auth + todas correções anteriores
+-- ATUALIZADO: Slider de Smoothness + GUI com prioridade máxima
 
--- =============================================
---   AGUARDA SERVIÇOS ESSENCIAIS (CRÍTICO PARA AUTH)
--- =============================================
-local Players       = game:GetService("Players")
-local RunService    = game:GetService("RunService")
-local TweenService  = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local Lighting      = game:GetService("Lighting")
 
--- Aguarda o LocalPlayer estar disponível (pode demorar em sistemas de auth)
 local Player = Players.LocalPlayer
-if not Player then
-	Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
-	Player = Players.LocalPlayer
-end
-
--- Aguarda PlayerGui com timeout generoso
-local PlayerGui
-do
-	local ok, result = pcall(function()
-		return Player:WaitForChild("PlayerGui", 30)
-	end)
-	if ok and result then
-		PlayerGui = result
-	else
-		PlayerGui = Player:FindFirstChildOfClass("PlayerGui") or Player:WaitForChild("PlayerGui")
-	end
-end
-
--- Aguarda o jogo carregar completamente
-if not game:IsLoaded() then
-	game.Loaded:Wait()
-end
-
--- Aguarda a câmera estar disponível
-if not workspace.CurrentCamera then
-	workspace:GetPropertyChangedSignal("CurrentCamera"):Wait()
-end
-
--- Pequena espera adicional para sistemas de auth finalizarem injeção
-task.wait(0.5)
-
-local CoreGui = game:GetService("CoreGui")
-
--- =============================================
---   AGUARDA CreatorId VÁLIDO (não 0)
--- =============================================
-local function WaitForCreatorId(timeout)
-	local t = 0
-	while game.CreatorId == 0 and t < timeout do
-		task.wait(0.2)
-		t = t + 0.2
-	end
-	return game.CreatorId
-end
-
-WaitForCreatorId(10)
-
--- =============================================
---   CROSSHAIR ROTATIVO COM PULSO + RGB RAINBOW
--- =============================================
-local CrossSG    = nil
-local CrossConn  = nil
-local CrossAngle = 0
-
-local PULSE_MIN  = 6
-local PULSE_MAX  = 16
-local PULSE_SPD  = 1.4
-local LINE_LEN   = 14
-local LINE_THICK = 2
-local DOT_COLOR  = Color3.fromRGB(255, 255, 255)
-local ROT_SPEED  = 80
-
-local function RainbowColor(t)
-	local h = (t * 0.18) % 1
-	local r, g, b
-	local i = math.floor(h * 6)
-	local f = h * 6 - i
-	local q = 1 - f
-	i = i % 6
-	if i == 0 then r, g, b = 1, f, 0
-	elseif i == 1 then r, g, b = q, 1, 0
-	elseif i == 2 then r, g, b = 0, 1, f
-	elseif i == 3 then r, g, b = 0, q, 1
-	elseif i == 4 then r, g, b = f, 0, 1
-	elseif i == 5 then r, g, b = 1, 0, q
-	end
-	return Color3.new(r, g, b)
-end
-
-local function SafeParentGui(gui)
-	-- Tenta CoreGui primeiro, fallback para PlayerGui
-	local ok = pcall(function() gui.Parent = CoreGui end)
-	if not ok then
-		pcall(function() gui.Parent = PlayerGui end)
-	end
-	-- Se ainda não tem pai, força PlayerGui
-	if not gui.Parent then
-		gui.Parent = PlayerGui
-	end
-end
-
-local function Crosshair_Start()
-	if CrossSG then pcall(function() CrossSG:Destroy() end) end
-	CrossSG = Instance.new("ScreenGui")
-	CrossSG.Name           = "CrosshairFX"
-	CrossSG.ResetOnSpawn   = false
-	CrossSG.IgnoreGuiInset = true
-	CrossSG.DisplayOrder   = 999999985
-	CrossSG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	SafeParentGui(CrossSG)
-
-	local container = Instance.new("Frame")
-	container.Name                   = "CrossContainer"
-	container.Size                   = UDim2.new(0, 100, 0, 100)
-	container.AnchorPoint            = Vector2.new(0.5, 0.5)
-	container.Position               = UDim2.new(0.5, 0, 0.5, 0)
-	container.BackgroundTransparency = 1
-	container.ZIndex                 = 5
-	container.Parent                 = CrossSG
-
-	local lU = Instance.new("Frame", container)
-	lU.Size             = UDim2.new(0, LINE_THICK, 0, LINE_LEN)
-	lU.AnchorPoint      = Vector2.new(0.5, 1)
-	lU.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-	lU.BorderSizePixel  = 0
-	lU.ZIndex           = 6
-	Instance.new("UICorner", lU).CornerRadius = UDim.new(1, 0)
-
-	local lD = Instance.new("Frame", container)
-	lD.Size             = UDim2.new(0, LINE_THICK, 0, LINE_LEN)
-	lD.AnchorPoint      = Vector2.new(0.5, 0)
-	lD.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-	lD.BorderSizePixel  = 0
-	lD.ZIndex           = 6
-	Instance.new("UICorner", lD).CornerRadius = UDim.new(1, 0)
-
-	local lL = Instance.new("Frame", container)
-	lL.Size             = UDim2.new(0, LINE_LEN, 0, LINE_THICK)
-	lL.AnchorPoint      = Vector2.new(1, 0.5)
-	lL.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-	lL.BorderSizePixel  = 0
-	lL.ZIndex           = 6
-	Instance.new("UICorner", lL).CornerRadius = UDim.new(1, 0)
-
-	local lR = Instance.new("Frame", container)
-	lR.Size             = UDim2.new(0, LINE_LEN, 0, LINE_THICK)
-	lR.AnchorPoint      = Vector2.new(0, 0.5)
-	lR.BackgroundColor3 = Color3.fromRGB(255, 70, 70)
-	lR.BorderSizePixel  = 0
-	lR.ZIndex           = 6
-	Instance.new("UICorner", lR).CornerRadius = UDim.new(1, 0)
-
-	local dot = Instance.new("Frame", container)
-	dot.Size             = UDim2.new(0, 4, 0, 4)
-	dot.AnchorPoint      = Vector2.new(0.5, 0.5)
-	dot.Position         = UDim2.new(0.5, 0, 0.5, 0)
-	dot.BackgroundColor3 = DOT_COLOR
-	dot.BorderSizePixel  = 0
-	dot.ZIndex           = 7
-	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
-
-	CrossAngle = 0
-	local pulseT   = 0
-	local rainbowT = 0
-
-	CrossConn = RunService.RenderStepped:Connect(function(dt)
-		CrossAngle = (CrossAngle + ROT_SPEED * dt) % 360
-		container.Rotation = CrossAngle
-
-		pulseT = pulseT + dt * PULSE_SPD
-		local gap = PULSE_MIN + (PULSE_MAX - PULSE_MIN) * ((math.sin(pulseT * math.pi * 2) + 1) / 2)
-
-		rainbowT = rainbowT + dt
-		local rc = RainbowColor(rainbowT)
-		lU.BackgroundColor3 = rc
-		lD.BackgroundColor3 = rc
-		lL.BackgroundColor3 = rc
-		lR.BackgroundColor3 = rc
-
-		local cx, cy = 0.5, 0.5
-		lU.Position = UDim2.new(cx, 0, cy, -(gap))
-		lD.Position = UDim2.new(cx, 0, cy, gap)
-		lL.Position = UDim2.new(cx, -(gap), cy, 0)
-		lR.Position = UDim2.new(cx, gap, cy, 0)
-	end)
-end
-
-local function Crosshair_Stop()
-	if CrossConn then CrossConn:Disconnect(); CrossConn = nil end
-	if CrossSG   then pcall(function() CrossSG:Destroy() end); CrossSG = nil end
-end
-
--- =============================================
---   DARK MAP
--- =============================================
-local DarkMap_OriginalValues = {}
-local DarkMap_Active = false
-
-local function DarkMap_Start()
-	if DarkMap_Active then return end
-	DarkMap_Active = true
-
-	DarkMap_OriginalValues = {
-		Ambient        = Lighting.Ambient,
-		OutdoorAmbient = Lighting.OutdoorAmbient,
-		Brightness     = Lighting.Brightness,
-		FogEnd         = Lighting.FogEnd,
-		FogColor       = Lighting.FogColor,
-	}
-
-	local old = Lighting:FindFirstChild("DarkFX_CC")
-	if old then old:Destroy() end
-
-	local cc = Instance.new("ColorCorrectionEffect")
-	cc.Name        = "DarkFX_CC"
-	cc.Brightness  = -0.55
-	cc.Contrast    = 0.2
-	cc.Saturation  = -0.3
-	cc.TintColor   = Color3.fromRGB(60, 60, 100)
-	cc.Parent      = Lighting
-
-	TweenService:Create(Lighting, TweenInfo.new(1.2, Enum.EasingStyle.Sine), {
-		Ambient        = Color3.fromRGB(0, 0, 0),
-		OutdoorAmbient = Color3.fromRGB(0, 0, 0),
-		Brightness     = 0,
-		FogEnd         = 60,
-		FogColor       = Color3.fromRGB(8, 8, 16),
-	}):Play()
-end
-
-local function DarkMap_Stop()
-	if not DarkMap_Active then return end
-	DarkMap_Active = false
-
-	local cc = Lighting:FindFirstChild("DarkFX_CC")
-	if cc then
-		TweenService:Create(cc, TweenInfo.new(1.0, Enum.EasingStyle.Sine), {Brightness = 0}):Play()
-		task.delay(1.1, function() if cc and cc.Parent then cc:Destroy() end end)
-	end
-	TweenService:Create(Lighting, TweenInfo.new(1.2, Enum.EasingStyle.Sine), {
-		Ambient        = DarkMap_OriginalValues.Ambient        or Color3.fromRGB(70,70,70),
-		OutdoorAmbient = DarkMap_OriginalValues.OutdoorAmbient or Color3.fromRGB(140,140,140),
-		Brightness     = DarkMap_OriginalValues.Brightness     or 1,
-		FogEnd         = DarkMap_OriginalValues.FogEnd         or 100000,
-		FogColor       = DarkMap_OriginalValues.FogColor       or Color3.fromRGB(191,191,191),
-	}):Play()
-end
-
--- =============================================
---   NEVE 2D — Azul Neon escuro igual à GUI
--- =============================================
-local SnowSG     = nil
-local SnowConn   = nil
-local SnowFlakes = {}
-local SNOW_COUNT = 160
-
-local SNOW_COLORS = {
-	Color3.fromRGB(99,  102, 241),
-	Color3.fromRGB(139, 92,  246),
-	Color3.fromRGB(80,  90,  230),
-	Color3.fromRGB(110, 120, 255),
-	Color3.fromRGB(60,  70,  200),
-}
-
-local function Snow_NewFlake(parent, randomY)
-	local roll = math.random(1, 10)
-	local size
-	if roll <= 5 then size = math.random(1, 2)
-	elseif roll <= 8 then size = math.random(3, 4)
-	else size = 5 end
-
-	local alpha   = math.random(50, 95) / 100
-	local speedY  = math.random(25, 90)
-	local speedX  = math.random(-20, 20)
-	local spinSpd = math.random(-200, 200)
-	local startX  = math.random(0, 10000) / 10000
-	local startY  = randomY and (math.random(-20, 100) / 100) or (-size / 1080)
-	local chosenColor = SNOW_COLORS[math.random(1, #SNOW_COLORS)]
-
-	local flake = Instance.new("Frame")
-	flake.Size             = UDim2.new(0, size, 0, size)
-	flake.Position         = UDim2.new(startX, 0, startY, 0)
-	flake.BackgroundColor3 = chosenColor
-	flake.BackgroundTransparency = 1 - alpha
-	flake.BorderSizePixel  = 0
-	flake.ZIndex           = 3
-	flake.Parent           = parent
-	Instance.new("UICorner", flake).CornerRadius = UDim.new(1, 0)
-
-	return {
-		frame  = flake,
-		x      = startX,
-		y      = startY,
-		speedY = speedY,
-		speedX = speedX,
-		spin   = spinSpd,
-		rot    = math.random(0, 360),
-		size   = size,
-	}
-end
-
-local function Snow_Start()
-	if SnowSG then pcall(function() SnowSG:Destroy() end) end
-	SnowSG = Instance.new("ScreenGui")
-	SnowSG.Name           = "SnowFX"
-	SnowSG.ResetOnSpawn   = false
-	SnowSG.IgnoreGuiInset = true
-	SnowSG.DisplayOrder   = 999999980
-	SafeParentGui(SnowSG)
-
-	local overlay = Instance.new("Frame")
-	overlay.Size                   = UDim2.new(1, 0, 1, 0)
-	overlay.BackgroundColor3       = Color3.fromRGB(20, 20, 60)
-	overlay.BackgroundTransparency = 0.97
-	overlay.BorderSizePixel        = 0
-	overlay.ZIndex                 = 1
-	overlay.Parent                 = SnowSG
-
-	local container = Instance.new("Frame")
-	container.Size                   = UDim2.new(1, 0, 1, 0)
-	container.BackgroundTransparency = 1
-	container.BorderSizePixel        = 0
-	container.ZIndex                 = 2
-	container.ClipsDescendants       = true
-	container.Parent                 = SnowSG
-
-	SnowFlakes = {}
-	for i = 1, SNOW_COUNT do
-		table.insert(SnowFlakes, Snow_NewFlake(container, true))
-	end
-
-	SnowConn = RunService.RenderStepped:Connect(function(dt)
-		local cam = workspace.CurrentCamera
-		if not cam then return end
-		local vp  = cam.ViewportSize
-		local w, h = vp.X, vp.Y
-		if w == 0 or h == 0 then return end
-
-		for _, f in ipairs(SnowFlakes) do
-			f.y   = f.y + (f.speedY / h) * dt
-			f.x   = f.x + (f.speedX / w) * dt
-			f.rot = f.rot + f.spin * dt
-
-			if f.y > 1.02 then
-				f.y = -(f.size / h)
-				f.x = math.random(0, 10000) / 10000
-			end
-			if f.x > 1.02 then f.x = -(f.size / w) end
-			if f.x < -(f.size / w) then f.x = 1.01 end
-
-			f.frame.Position = UDim2.new(f.x, 0, f.y, 0)
-			f.frame.Rotation = f.rot
-		end
-	end)
-end
-
-local function Snow_Stop()
-	if SnowConn  then SnowConn:Disconnect();  SnowConn  = nil end
-	SnowFlakes = {}
-	if SnowSG   then pcall(function() SnowSG:Destroy() end); SnowSG = nil end
-end
+local PlayerGui = Player:WaitForChild("PlayerGui")
 
 -- =====================
 --   VARIÁVEIS GLOBAIS
@@ -375,6 +20,11 @@ local IsMinimized         = false
 local CurrentTab          = "MAIN"
 local ESPEnabled          = false
 local TeleportKillEnabled = false
+local AutoFarmEnabled     = false
+local AutoKillEnabled     = false
+local NotifEnabled        = false
+
+-- PLAYER PAGE
 local SpeedEnabled        = false
 local InfJumpEnabled      = false
 local NoClipEnabled       = false
@@ -407,26 +57,32 @@ local Colors = {
 	TabBar        = Color3.fromRGB(18, 18, 26),
 }
 
+-- =====================
+--   TWEEN CONFIG
+-- =====================
 local FastTween = TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 local SlowTween = TweenInfo.new(0.4,  Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
 -- =============================================
 --   GAME LOCK — Creator ID: 3461453 (RIVALS)
+--   Script only works in games by this creator
 -- =============================================
 local REQUIRED_CREATOR_ID = 3461453
 
 if game.CreatorId ~= REQUIRED_CREATOR_ID then
+	-- Create standalone error notification (no main GUI needed)
 	local ErrGui = Instance.new("ScreenGui")
-	ErrGui.Name           = "AnxieeWrongGame"
-	ErrGui.ResetOnSpawn   = false
+	ErrGui.Name          = "AnxieeWrongGame"
+	ErrGui.ResetOnSpawn  = false
 	ErrGui.IgnoreGuiInset = true
-	ErrGui.DisplayOrder   = 999999999
-	ErrGui.Parent         = PlayerGui
+	ErrGui.DisplayOrder  = 999999999
+	ErrGui.Parent        = PlayerGui
 
+	-- Card principal
 	local ErrFrame = Instance.new("Frame")
 	ErrFrame.Size        = UDim2.new(0, 330, 0, 96)
 	ErrFrame.AnchorPoint = Vector2.new(0.5, 0)
-	ErrFrame.Position    = UDim2.new(0.5, 0, -0.25, 0)
+	ErrFrame.Position    = UDim2.new(0.5, 0, -0.25, 0) -- começa fora da tela
 	ErrFrame.BackgroundColor3 = Color3.fromRGB(22, 14, 14)
 	ErrFrame.BorderSizePixel  = 0
 	ErrFrame.Parent      = ErrGui
@@ -437,6 +93,7 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrStroke.Thickness = 1.5
 	ErrStroke.Parent    = ErrFrame
 
+	-- Barra vermelha lateral
 	local ErrBar = Instance.new("Frame")
 	ErrBar.Size = UDim2.new(0, 4, 1, -16)
 	ErrBar.Position = UDim2.new(0, 8, 0, 8)
@@ -445,6 +102,7 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrBar.Parent = ErrFrame
 	Instance.new("UICorner", ErrBar).CornerRadius = UDim.new(1, 0)
 
+	-- Ícone
 	local ErrIconBg = Instance.new("Frame")
 	ErrIconBg.Size = UDim2.new(0, 40, 0, 40)
 	ErrIconBg.Position = UDim2.new(0, 18, 0.5, -20)
@@ -462,6 +120,7 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrIcon.ZIndex    = 2
 	ErrIcon.Parent    = ErrIconBg
 
+	-- Título
 	local ErrTitle = Instance.new("TextLabel")
 	ErrTitle.Size     = UDim2.new(1, -80, 0, 26)
 	ErrTitle.Position = UDim2.new(0, 68, 0, 12)
@@ -473,11 +132,12 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrTitle.TextXAlignment = Enum.TextXAlignment.Left
 	ErrTitle.Parent        = ErrFrame
 
+	-- Mensagem
 	local ErrMsg = Instance.new("TextLabel")
 	ErrMsg.Size     = UDim2.new(1, -80, 0, 44)
 	ErrMsg.Position = UDim2.new(0, 68, 0, 40)
 	ErrMsg.BackgroundTransparency = 1
-	ErrMsg.Text          = "Anxiee Scripts only works in the correct game.\nPlease join the right game and try again."
+	ErrMsg.Text          = "⚡ Anxiee Scripts only works in the correct game.\nPlease join the right game and try again."
 	ErrMsg.TextColor3    = Color3.fromRGB(180, 120, 120)
 	ErrMsg.TextSize      = 11
 	ErrMsg.Font          = Enum.Font.Gotham
@@ -485,6 +145,7 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrMsg.TextWrapped   = true
 	ErrMsg.Parent        = ErrFrame
 
+	-- Barra de progresso (conta regressiva visual)
 	local ErrBarBg = Instance.new("Frame")
 	ErrBarBg.Size = UDim2.new(1, -16, 0, 3)
 	ErrBarBg.Position = UDim2.new(0, 8, 1, -8)
@@ -500,146 +161,145 @@ if game.CreatorId ~= REQUIRED_CREATOR_ID then
 	ErrBarFill.Parent = ErrBarBg
 	Instance.new("UICorner", ErrBarFill).CornerRadius = UDim.new(1, 0)
 
+	-- Animação de entrada (slide down)
 	local DISMISS_DELAY = 6
-	TweenService:Create(ErrFrame, SlowTween, {Position = UDim2.new(0.5, 0, 0, 20)}):Play()
-	TweenService:Create(ErrBarFill, TweenInfo.new(DISMISS_DELAY, Enum.EasingStyle.Linear), {Size = UDim2.new(0, 0, 1, 0)}):Play()
+	TweenService:Create(ErrFrame, SlowTween, {
+		Position = UDim2.new(0.5, 0, 0, 20)
+	}):Play()
+
+	-- Barra de progresso encolhe conforme o tempo passa
+	TweenService:Create(ErrBarFill,
+		TweenInfo.new(DISMISS_DELAY, Enum.EasingStyle.Linear),
+		{Size = UDim2.new(0, 0, 1, 0)}
+	):Play()
+
+	-- Auto-dismiss com slide up
 	task.delay(DISMISS_DELAY, function()
-		TweenService:Create(ErrFrame, SlowTween, {Position = UDim2.new(0.5, 0, -0.25, 0)}):Play()
+		TweenService:Create(ErrFrame, SlowTween, {
+			Position = UDim2.new(0.5, 0, -0.25, 0)
+		}):Play()
 		task.delay(0.5, function() ErrGui:Destroy() end)
 	end)
 
-	return
+	return -- Interrompe o script completamente
 end
 
--- =============================================
---   REMOVE GUI DUPLICADA (proteção auth re-run)
--- =============================================
-local function RemoveDuplicateGui(name)
-	-- Tenta remover de CoreGui
-	pcall(function()
-		local old = CoreGui:FindFirstChild(name)
-		if old then old:Destroy() end
-	end)
-	-- Tenta remover de PlayerGui
-	pcall(function()
-		local old = PlayerGui:FindFirstChild(name)
-		if old then old:Destroy() end
-	end)
-end
-
-RemoveDuplicateGui("Anxiee Scripts")
-RemoveDuplicateGui("CrosshairFX")
-RemoveDuplicateGui("SnowFX")
-RemoveDuplicateGui("Aimbot_FOV_V7")
-RemoveDuplicateGui("Aimbot_Pro_V6")
-
-task.wait(0.1)
-
 -- =====================
---   SCREEN GUI
+--   SCREEN GUI (PRIORIDADE MÁXIMA)
+--   Parented to CoreGui para persistir entre sub-places/mapas
 -- =====================
+local CoreGui = game:GetService("CoreGui")
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name            = "Anxiee Scripts"
-ScreenGui.ResetOnSpawn    = false
-ScreenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
-ScreenGui.IgnoreGuiInset  = true
-ScreenGui.DisplayOrder    = 999999999
-SafeParentGui(ScreenGui)
+ScreenGui.Name = "Anxiee Scripts"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.IgnoreGuiInset = true
+ScreenGui.DisplayOrder = 999999999  -- PRIORIDADE MÁXIMA
+-- Tenta CoreGui primeiro (persiste entre teleportes/mapas sem precisar re-executar)
+-- Se o executor bloquear CoreGui, cai para PlayerGui
+local guiOk = pcall(function() ScreenGui.Parent = CoreGui end)
+if not guiOk then
+	ScreenGui.Parent = PlayerGui
+end
 
 -- =====================
 --   JANELA PRINCIPAL
 -- =====================
 local MainFrame = Instance.new("Frame")
-MainFrame.Name              = "MainFrame"
-MainFrame.Size              = UDim2.new(0, GUI_W, 0, GUI_H)
-MainFrame.Position          = UDim2.new(-1, -GUI_W, 0.5, -GUI_H/2)
-MainFrame.BackgroundColor3  = Colors.Background
-MainFrame.BorderSizePixel   = 0
-MainFrame.ClipsDescendants  = true
-MainFrame.ZIndex            = 10
-MainFrame.Parent            = ScreenGui
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, GUI_W, 0, GUI_H)
+MainFrame.Position = UDim2.new(-1, -GUI_W, 0.5, -GUI_H/2)
+MainFrame.BackgroundColor3 = Colors.Background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.ZIndex = 10
+MainFrame.Parent = ScreenGui
 
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 18)
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 18)
+MainCorner.Parent = MainFrame
 
 local MainStroke = Instance.new("UIStroke")
-MainStroke.Color           = Colors.Border
-MainStroke.Thickness       = 1.5
+MainStroke.Color = Colors.Border
+MainStroke.Thickness = 1.5
 MainStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-MainStroke.Parent          = MainFrame
+MainStroke.Parent = MainFrame
 
+-- Constraint para garantir tamanho máximo em telas pequenas
 local sizeConstraint = Instance.new("UISizeConstraint")
 sizeConstraint.MaxSize = Vector2.new(GUI_W, GUI_H)
 sizeConstraint.MinSize = Vector2.new(280, 350)
-sizeConstraint.Parent  = MainFrame
+sizeConstraint.Parent = MainFrame
 
 -- =====================
 --   TÍTULO BAR (48px)
 -- =====================
 local TitleBar = Instance.new("Frame")
-TitleBar.Name             = "TitleBar"
-TitleBar.Size             = UDim2.new(1, 0, 0, 48)
-TitleBar.Position         = UDim2.new(0, 0, 0, 0)
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 48)
+TitleBar.Position = UDim2.new(0, 0, 0, 0)
 TitleBar.BackgroundColor3 = Colors.TitleBar
-TitleBar.BorderSizePixel  = 0
-TitleBar.ZIndex           = 11
-TitleBar.Parent           = MainFrame
+TitleBar.BorderSizePixel = 0
+TitleBar.ZIndex = 11
+TitleBar.Parent = MainFrame
+
 Instance.new("UICorner", TitleBar).CornerRadius = UDim.new(0, 18)
 
 local TitleBarFix = Instance.new("Frame")
-TitleBarFix.Size             = UDim2.new(1, 0, 0, 18)
-TitleBarFix.Position         = UDim2.new(0, 0, 1, -18)
+TitleBarFix.Size = UDim2.new(1, 0, 0, 18)
+TitleBarFix.Position = UDim2.new(0, 0, 1, -18)
 TitleBarFix.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
-TitleBarFix.BorderSizePixel  = 0
-TitleBarFix.ZIndex           = 11
-TitleBarFix.Parent           = TitleBar
+TitleBarFix.BorderSizePixel = 0
+TitleBarFix.ZIndex = 11
+TitleBarFix.Parent = TitleBar
 
 local TitleDot = Instance.new("Frame")
-TitleDot.Size             = UDim2.new(0, 8, 0, 8)
-TitleDot.Position         = UDim2.new(0, 16, 0.5, -4)
+TitleDot.Size = UDim2.new(0, 8, 0, 8)
+TitleDot.Position = UDim2.new(0, 16, 0.5, -4)
 TitleDot.BackgroundColor3 = Colors.Accent
-TitleDot.BorderSizePixel  = 0
-TitleDot.ZIndex           = 12
-TitleDot.Parent           = TitleBar
+TitleDot.BorderSizePixel = 0
+TitleDot.ZIndex = 12
+TitleDot.Parent = TitleBar
 Instance.new("UICorner", TitleDot).CornerRadius = UDim.new(1, 0)
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size             = UDim2.new(1, -80, 1, 0)
-TitleLabel.Position         = UDim2.new(0, 34, 0, 0)
+TitleLabel.Size = UDim2.new(1, -80, 1, 0)
+TitleLabel.Position = UDim2.new(0, 34, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text             = "Anxiie Scripts"
-TitleLabel.TextColor3       = Colors.TextPrimary
-TitleLabel.TextSize         = 15
-TitleLabel.Font             = Enum.Font.GothamBold
-TitleLabel.TextXAlignment   = Enum.TextXAlignment.Left
-TitleLabel.ZIndex           = 12
-TitleLabel.Parent           = TitleBar
+TitleLabel.Text = "⚡ Anxiie Scripts"
+TitleLabel.TextColor3 = Colors.TextPrimary
+TitleLabel.TextSize = 15
+TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.ZIndex = 12
+TitleLabel.Parent = TitleBar
 
 local SubLabel = Instance.new("TextLabel")
-SubLabel.Size             = UDim2.new(0, 80, 1, 0)
-SubLabel.Position         = UDim2.new(0, 34, 0, 14)
+SubLabel.Size = UDim2.new(0, 80, 1, 0)
+SubLabel.Position = UDim2.new(0, 34, 0, 14)
 SubLabel.BackgroundTransparency = 1
-SubLabel.Text             = "Update 11/04/26 v1.9"
-SubLabel.TextColor3       = Colors.TextSecondary
-SubLabel.TextSize         = 10
-SubLabel.Font             = Enum.Font.Gotham
-SubLabel.TextXAlignment   = Enum.TextXAlignment.Left
-SubLabel.ZIndex           = 12
-SubLabel.Parent           = TitleBar
+SubLabel.Text = "Update 09/03/26 v1.3"
+SubLabel.TextColor3 = Colors.TextSecondary
+SubLabel.TextSize = 10
+SubLabel.Font = Enum.Font.Gotham
+SubLabel.TextXAlignment = Enum.TextXAlignment.Left
+SubLabel.ZIndex = 12
+SubLabel.Parent = TitleBar
 
 local function CreateIconButton(name, icon, posX, bgColor, hoverColor, parent)
 	local btn = Instance.new("TextButton")
-	btn.Name             = name
-	btn.Size             = UDim2.new(0, 30, 0, 30)
-	btn.Position         = UDim2.new(1, posX, 0.5, -15)
+	btn.Name = name
+	btn.Size = UDim2.new(0, 30, 0, 30)
+	btn.Position = UDim2.new(1, posX, 0.5, -15)
 	btn.BackgroundColor3 = bgColor
-	btn.BorderSizePixel  = 0
-	btn.Text             = icon
-	btn.TextColor3       = Colors.TextPrimary
-	btn.TextSize         = 13
-	btn.Font             = Enum.Font.GothamBold
-	btn.AutoButtonColor  = false
-	btn.ZIndex           = 12
-	btn.Parent           = parent
+	btn.BorderSizePixel = 0
+	btn.Text = icon
+	btn.TextColor3 = Colors.TextPrimary
+	btn.TextSize = 13
+	btn.Font = Enum.Font.GothamBold
+	btn.AutoButtonColor = false
+	btn.ZIndex = 12
+	btn.Parent = parent
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 	btn.MouseEnter:Connect(function()
 		TweenService:Create(btn, FastTween, {BackgroundColor3 = hoverColor}):Play()
@@ -656,125 +316,125 @@ local MinBtn = CreateIconButton("MinBtn", "—", -38, Colors.Surface, Colors.Sur
 --   TAB BAR (38px)
 -- =====================
 local TabBar = Instance.new("Frame")
-TabBar.Name             = "TabBar"
-TabBar.Size             = UDim2.new(1, 0, 0, 38)
-TabBar.Position         = UDim2.new(0, 0, 0, 48)
+TabBar.Name = "TabBar"
+TabBar.Size = UDim2.new(1, 0, 0, 38)
+TabBar.Position = UDim2.new(0, 0, 0, 48)
 TabBar.BackgroundColor3 = Colors.TabBar
-TabBar.BorderSizePixel  = 0
-TabBar.ZIndex           = 11
-TabBar.Parent           = MainFrame
+TabBar.BorderSizePixel = 0
+TabBar.ZIndex = 11
+TabBar.Parent = MainFrame
 
 local TabSep = Instance.new("Frame")
-TabSep.Size             = UDim2.new(1, 0, 0, 1)
-TabSep.Position         = UDim2.new(0, 0, 1, -1)
+TabSep.Size = UDim2.new(1, 0, 0, 1)
+TabSep.Position = UDim2.new(0, 0, 1, -1)
 TabSep.BackgroundColor3 = Colors.Border
-TabSep.BorderSizePixel  = 0
-TabSep.ZIndex           = 11
-TabSep.Parent           = TabBar
+TabSep.BorderSizePixel = 0
+TabSep.ZIndex = 11
+TabSep.Parent = TabBar
 
 -- =====================
 --   PAGES CONTAINER
 -- =====================
 local PagesContainer = Instance.new("Frame")
-PagesContainer.Name                 = "PagesContainer"
-PagesContainer.Size                 = UDim2.new(1, 0, 0, GUI_H - 86)
-PagesContainer.Position             = UDim2.new(0, 0, 0, 86)
+PagesContainer.Name = "PagesContainer"
+PagesContainer.Size = UDim2.new(1, 0, 0, GUI_H - 86)
+PagesContainer.Position = UDim2.new(0, 0, 0, 86)
 PagesContainer.BackgroundTransparency = 1
-PagesContainer.ClipsDescendants     = true
-PagesContainer.ZIndex               = 10
-PagesContainer.Parent               = MainFrame
+PagesContainer.ClipsDescendants = true
+PagesContainer.ZIndex = 10
+PagesContainer.Parent = MainFrame
 
 -- =====================
 --   HELPERS
 -- =====================
 local function CreatePage(name)
 	local scrollFrame = Instance.new("ScrollingFrame")
-	scrollFrame.Name                   = name
-	scrollFrame.Size                   = UDim2.new(1, 0, 1, 0)
-	scrollFrame.Position               = UDim2.new(0, 0, 0, 0)
+	scrollFrame.Name = name
+	scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+	scrollFrame.Position = UDim2.new(0, 0, 0, 0)
 	scrollFrame.BackgroundTransparency = 1
-	scrollFrame.BorderSizePixel        = 0
-	scrollFrame.ScrollBarThickness     = 6
-	scrollFrame.ScrollBarImageColor3   = Colors.Accent
+	scrollFrame.BorderSizePixel = 0
+	scrollFrame.ScrollBarThickness = 6
+	scrollFrame.ScrollBarImageColor3 = Colors.Accent
 	scrollFrame.ScrollBarImageTransparency = 0.3
-	scrollFrame.CanvasSize             = UDim2.new(0, 0, 0, 0)
-	scrollFrame.AutomaticCanvasSize    = Enum.AutomaticSize.Y
-	scrollFrame.ScrollingDirection     = Enum.ScrollingDirection.Y
-	scrollFrame.ElasticBehavior        = Enum.ElasticBehavior.Always
-	scrollFrame.ScrollingEnabled       = true
-	scrollFrame.Visible                = false
-	scrollFrame.ZIndex                 = 10
-	scrollFrame.Parent                 = PagesContainer
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+	scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	scrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+	scrollFrame.ElasticBehavior = Enum.ElasticBehavior.Always
+	scrollFrame.ScrollingEnabled = true
+	scrollFrame.Visible = false
+	scrollFrame.ZIndex = 10
+	scrollFrame.Parent = PagesContainer
 
 	local pad = Instance.new("UIPadding")
 	pad.PaddingLeft   = UDim.new(0, 16)
 	pad.PaddingRight  = UDim.new(0, 20)
 	pad.PaddingTop    = UDim.new(0, 14)
 	pad.PaddingBottom = UDim.new(0, 14)
-	pad.Parent        = scrollFrame
+	pad.Parent = scrollFrame
 
 	local layout = Instance.new("UIListLayout")
 	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Padding   = UDim.new(0, 10)
-	layout.Parent    = scrollFrame
+	layout.Padding = UDim.new(0, 10)
+	layout.Parent = scrollFrame
 
 	return scrollFrame
 end
 
 local function CreateCard(parent, order, customHeight)
 	local height = customHeight or 58
-	local card   = Instance.new("Frame")
-	card.Size             = UDim2.new(1, 0, 0, height)
+	local card = Instance.new("Frame")
+	card.Size = UDim2.new(1, 0, 0, height)
 	card.BackgroundColor3 = Colors.Surface
-	card.BorderSizePixel  = 0
-	card.LayoutOrder      = order
-	card.ZIndex           = 11
-	card.Parent           = parent
+	card.BorderSizePixel = 0
+	card.LayoutOrder = order
+	card.ZIndex = 11
+	card.Parent = parent
 	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 12)
 	local stroke = Instance.new("UIStroke")
-	stroke.Color     = Colors.Border
+	stroke.Color = Colors.Border
 	stroke.Thickness = 1
-	stroke.Parent    = card
+	stroke.Parent = card
 	return card, stroke
 end
 
 local function AddCardInfo(card, icon, iconColor, title, subtitle)
 	local iconBox = Instance.new("TextLabel")
-	iconBox.Size             = UDim2.new(0, 36, 0, 36)
-	iconBox.Position         = UDim2.new(0, 10, 0, 11)
+	iconBox.Size = UDim2.new(0, 36, 0, 36)
+	iconBox.Position = UDim2.new(0, 10, 0, 11)
 	iconBox.BackgroundColor3 = Color3.fromRGB(32, 32, 48)
-	iconBox.Text             = icon
-	iconBox.TextSize         = 16
-	iconBox.Font             = Enum.Font.GothamBold
-	iconBox.TextColor3       = iconColor
-	iconBox.BorderSizePixel  = 0
-	iconBox.ZIndex           = 12
-	iconBox.Parent           = card
+	iconBox.Text = icon
+	iconBox.TextSize = 16
+	iconBox.Font = Enum.Font.GothamBold
+	iconBox.TextColor3 = iconColor
+	iconBox.BorderSizePixel = 0
+	iconBox.ZIndex = 12
+	iconBox.Parent = card
 	Instance.new("UICorner", iconBox).CornerRadius = UDim.new(0, 10)
 
 	local lbl = Instance.new("TextLabel")
-	lbl.Size             = UDim2.new(1, -120, 0, 20)
-	lbl.Position         = UDim2.new(0, 56, 0, 10)
+	lbl.Size = UDim2.new(1, -120, 0, 20)
+	lbl.Position = UDim2.new(0, 56, 0, 10)
 	lbl.BackgroundTransparency = 1
-	lbl.Text             = title
-	lbl.TextColor3       = Colors.TextPrimary
-	lbl.TextSize         = 13
-	lbl.Font             = Enum.Font.GothamBold
-	lbl.TextXAlignment   = Enum.TextXAlignment.Left
-	lbl.ZIndex           = 12
-	lbl.Parent           = card
+	lbl.Text = title
+	lbl.TextColor3 = Colors.TextPrimary
+	lbl.TextSize = 13
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.ZIndex = 12
+	lbl.Parent = card
 
 	local sub = Instance.new("TextLabel")
-	sub.Size             = UDim2.new(1, -120, 0, 16)
-	sub.Position         = UDim2.new(0, 56, 0, 32)
+	sub.Size = UDim2.new(1, -120, 0, 16)
+	sub.Position = UDim2.new(0, 56, 0, 32)
 	sub.BackgroundTransparency = 1
-	sub.Text             = subtitle
-	sub.TextColor3       = Colors.TextSecondary
-	sub.TextSize         = 11
-	sub.Font             = Enum.Font.Gotham
-	sub.TextXAlignment   = Enum.TextXAlignment.Left
-	sub.ZIndex           = 12
-	sub.Parent           = card
+	sub.Text = subtitle
+	sub.TextColor3 = Colors.TextSecondary
+	sub.TextSize = 11
+	sub.Font = Enum.Font.Gotham
+	sub.TextXAlignment = Enum.TextXAlignment.Left
+	sub.ZIndex = 12
+	sub.Parent = card
 
 	return sub
 end
@@ -782,131 +442,138 @@ end
 local function AddToggle(card, yPos)
 	yPos = yPos or 0.5
 	local bg = Instance.new("Frame")
-	bg.Size             = UDim2.new(0, 52, 0, 28)
-	bg.Position         = UDim2.new(1, -62, yPos, -14)
+	bg.Size = UDim2.new(0, 52, 0, 28)
+	bg.Position = UDim2.new(1, -62, yPos, -14)
 	bg.BackgroundColor3 = Colors.ToggleOff
-	bg.BorderSizePixel  = 0
-	bg.ZIndex           = 12
-	bg.Parent           = card
+	bg.BorderSizePixel = 0
+	bg.ZIndex = 12
+	bg.Parent = card
 	Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
 
 	local knob = Instance.new("Frame")
-	knob.Size             = UDim2.new(0, 22, 0, 22)
-	knob.Position         = UDim2.new(0, 3, 0.5, -11)
+	knob.Size = UDim2.new(0, 22, 0, 22)
+	knob.Position = UDim2.new(0, 3, 0.5, -11)
 	knob.BackgroundColor3 = Color3.fromRGB(200, 200, 220)
-	knob.BorderSizePixel  = 0
-	knob.ZIndex           = 13
-	knob.Parent           = bg
+	knob.BorderSizePixel = 0
+	knob.ZIndex = 13
+	knob.Parent = bg
 	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 
 	local hitbox = Instance.new("TextButton")
-	hitbox.Size                 = UDim2.new(0, 52, 0, 28)
-	hitbox.Position             = UDim2.new(1, -62, yPos, -14)
+	hitbox.Size = UDim2.new(0, 52, 0, 28)
+	hitbox.Position = UDim2.new(1, -62, yPos, -14)
 	hitbox.BackgroundTransparency = 1
-	hitbox.Text                 = ""
-	hitbox.ZIndex               = 14
-	hitbox.Parent               = card
+	hitbox.Text = ""
+	hitbox.ZIndex = 14
+	hitbox.Parent = card
 
 	return bg, knob, hitbox
 end
 
 local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPosition, fmtStr)
 	fmtStr = fmtStr or "%.2f"
+	-- Container do slider
 	local sliderContainer = Instance.new("Frame")
-	sliderContainer.Size                 = UDim2.new(1, -76, 0, 24)
-	sliderContainer.Position             = UDim2.new(0, 56, 0, yPosition)
+	sliderContainer.Size = UDim2.new(1, -76, 0, 24)
+	sliderContainer.Position = UDim2.new(0, 56, 0, yPosition)
 	sliderContainer.BackgroundTransparency = 1
-	sliderContainer.ZIndex               = 12
-	sliderContainer.Parent               = card
+	sliderContainer.ZIndex = 12
+	sliderContainer.Parent = card
 
+	-- Label do slider
 	local sliderLabel = Instance.new("TextLabel")
-	sliderLabel.Size             = UDim2.new(0.5, 0, 1, 0)
+	sliderLabel.Size = UDim2.new(0.5, 0, 1, 0)
+	sliderLabel.Position = UDim2.new(0, 0, 0, 0)
 	sliderLabel.BackgroundTransparency = 1
-	sliderLabel.Text             = labelText
-	sliderLabel.TextColor3       = Colors.TextSecondary
-	sliderLabel.TextSize         = 10
-	sliderLabel.Font             = Enum.Font.Gotham
-	sliderLabel.TextXAlignment   = Enum.TextXAlignment.Left
-	sliderLabel.ZIndex           = 12
-	sliderLabel.Parent           = sliderContainer
+	sliderLabel.Text = labelText
+	sliderLabel.TextColor3 = Colors.TextSecondary
+	sliderLabel.TextSize = 10
+	sliderLabel.Font = Enum.Font.Gotham
+	sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+	sliderLabel.ZIndex = 12
+	sliderLabel.Parent = sliderContainer
 
+	-- Valor atual
 	local valueLabel = Instance.new("TextLabel")
-	valueLabel.Size             = UDim2.new(0.3, 0, 1, 0)
-	valueLabel.Position         = UDim2.new(0.7, 0, 0, 0)
+	valueLabel.Size = UDim2.new(0.3, 0, 1, 0)
+	valueLabel.Position = UDim2.new(0.7, 0, 0, 0)
 	valueLabel.BackgroundTransparency = 1
-	valueLabel.Text             = string.format(fmtStr, defaultVal)
-	valueLabel.TextColor3       = Colors.Accent
-	valueLabel.TextSize         = 10
-	valueLabel.Font             = Enum.Font.GothamBold
-	valueLabel.TextXAlignment   = Enum.TextXAlignment.Right
-	valueLabel.ZIndex           = 12
-	valueLabel.Parent           = sliderContainer
+	valueLabel.Text = string.format(fmtStr, defaultVal)
+	valueLabel.TextColor3 = Colors.Accent
+	valueLabel.TextSize = 10
+	valueLabel.Font = Enum.Font.GothamBold
+	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+	valueLabel.ZIndex = 12
+	valueLabel.Parent = sliderContainer
 
+	-- Background da barra
 	local sliderBg = Instance.new("Frame")
-	sliderBg.Size             = UDim2.new(1, 0, 0, 4)
-	sliderBg.Position         = UDim2.new(0, 0, 1, 6)
+	sliderBg.Size = UDim2.new(1, 0, 0, 4)
+	sliderBg.Position = UDim2.new(0, 0, 1, 6)
 	sliderBg.BackgroundColor3 = Colors.ToggleOff
-	sliderBg.BorderSizePixel  = 0
-	sliderBg.ZIndex           = 12
-	sliderBg.Parent           = sliderContainer
+	sliderBg.BorderSizePixel = 0
+	sliderBg.ZIndex = 12
+	sliderBg.Parent = sliderContainer
 	Instance.new("UICorner", sliderBg).CornerRadius = UDim.new(1, 0)
 
+	-- Barra de progresso
+	local sliderFill = Instance.new("Frame")
 	local fillPercent = (defaultVal - minVal) / (maxVal - minVal)
-	local sliderFill  = Instance.new("Frame")
-	sliderFill.Size             = UDim2.new(fillPercent, 0, 1, 0)
+	sliderFill.Size = UDim2.new(fillPercent, 0, 1, 0)
 	sliderFill.BackgroundColor3 = Colors.Accent
-	sliderFill.BorderSizePixel  = 0
-	sliderFill.ZIndex           = 13
-	sliderFill.Parent           = sliderBg
+	sliderFill.BorderSizePixel = 0
+	sliderFill.ZIndex = 13
+	sliderFill.Parent = sliderBg
 	Instance.new("UICorner", sliderFill).CornerRadius = UDim.new(1, 0)
 
+	-- Botão deslizante
 	local sliderKnob = Instance.new("Frame")
-	sliderKnob.Size             = UDim2.new(0, 12, 0, 12)
-	sliderKnob.Position         = UDim2.new(fillPercent, -6, 0.5, -6)
+	sliderKnob.Size = UDim2.new(0, 12, 0, 12)
+	sliderKnob.Position = UDim2.new(fillPercent, -6, 0.5, -6)
 	sliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	sliderKnob.BorderSizePixel  = 0
-	sliderKnob.ZIndex           = 14
-	sliderKnob.Parent           = sliderBg
+	sliderKnob.BorderSizePixel = 0
+	sliderKnob.ZIndex = 14
+	sliderKnob.Parent = sliderBg
 	Instance.new("UICorner", sliderKnob).CornerRadius = UDim.new(1, 0)
 
+	-- Hitbox interativa
 	local sliderHitbox = Instance.new("TextButton")
-	sliderHitbox.Size                 = UDim2.new(1, 0, 1, 12)
-	sliderHitbox.Position             = UDim2.new(0, 0, 0, -4)
+	sliderHitbox.Size = UDim2.new(1, 0, 1, 12)
+	sliderHitbox.Position = UDim2.new(0, 0, 0, -4)
 	sliderHitbox.BackgroundTransparency = 1
-	sliderHitbox.Text                 = ""
-	sliderHitbox.ZIndex               = 15
-	sliderHitbox.Parent               = sliderBg
+	sliderHitbox.Text = ""
+	sliderHitbox.ZIndex = 15
+	sliderHitbox.Parent = sliderBg
 
 	local currentValue = defaultVal
-	local dragging     = false
+	local dragging = false
 
 	local function UpdateSlider(input)
-		local relativeX = math.clamp(
-			(input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1
-		)
+		local relativeX = math.clamp((input.Position.X - sliderBg.AbsolutePosition.X) / sliderBg.AbsoluteSize.X, 0, 1)
 		currentValue = minVal + (maxVal - minVal) * relativeX
+		
 		TweenService:Create(sliderFill, FastTween, {Size = UDim2.new(relativeX, 0, 1, 0)}):Play()
 		TweenService:Create(sliderKnob, FastTween, {Position = UDim2.new(relativeX, -6, 0.5, -6)}):Play()
 		valueLabel.Text = string.format(fmtStr, currentValue)
+		
 		return currentValue
 	end
 
 	sliderHitbox.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = true
 			UpdateSlider(input)
 		end
 	end)
+
 	sliderHitbox.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			dragging = false
 		end
 	end)
+
 	UserInputService.InputChanged:Connect(function(input)
-		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch) then
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 			UpdateSlider(input)
 		end
 	end)
@@ -916,9 +583,9 @@ local function CreateSlider(card, minVal, maxVal, defaultVal, labelText, yPositi
 		SetValue = function(newVal)
 			currentValue = math.clamp(newVal, minVal, maxVal)
 			local percent = (currentValue - minVal) / (maxVal - minVal)
-			sliderFill.Size     = UDim2.new(percent, 0, 1, 0)
+			sliderFill.Size = UDim2.new(percent, 0, 1, 0)
 			sliderKnob.Position = UDim2.new(percent, -6, 0.5, -6)
-			valueLabel.Text     = string.format(fmtStr, currentValue)
+			valueLabel.Text = string.format(fmtStr, currentValue)
 		end
 	}
 end
@@ -928,49 +595,51 @@ end
 -- =====================
 local function CreateCheckbox(parent, label, defaultOn, xPos, yPos)
 	local container = Instance.new("Frame")
-	container.Size                 = UDim2.new(0, 68, 0, 22)
-	container.Position             = UDim2.new(0, xPos, 0, yPos)
+	container.Size = UDim2.new(0, 68, 0, 22)
+	container.Position = UDim2.new(0, xPos, 0, yPos)
 	container.BackgroundTransparency = 1
-	container.ZIndex               = 12
-	container.Parent               = parent
+	container.ZIndex = 12
+	container.Parent = parent
 
 	local box = Instance.new("Frame")
-	box.Size             = UDim2.new(0, 14, 0, 14)
-	box.Position         = UDim2.new(0, 0, 0.5, -7)
+	box.Size = UDim2.new(0, 14, 0, 14)
+	box.Position = UDim2.new(0, 0, 0.5, -7)
 	box.BackgroundColor3 = defaultOn and Colors.Accent or Colors.ToggleOff
-	box.BorderSizePixel  = 0
-	box.ZIndex           = 13
-	box.Parent           = container
-	Instance.new("UICorner", box).CornerRadius = UDim.new(0, 4)
+	box.BorderSizePixel = 0
+	box.ZIndex = 13
+	box.Parent = container
+	local boxCorner = Instance.new("UICorner")
+	boxCorner.CornerRadius = UDim.new(0, 4)
+	boxCorner.Parent = box
 
 	local checkMark = Instance.new("TextLabel")
-	checkMark.Size                 = UDim2.new(1, 0, 1, 0)
+	checkMark.Size = UDim2.new(1, 0, 1, 0)
 	checkMark.BackgroundTransparency = 1
-	checkMark.Text                 = defaultOn and "✓" or ""
-	checkMark.TextColor3           = Color3.fromRGB(255, 255, 255)
-	checkMark.TextSize             = 9
-	checkMark.Font                 = Enum.Font.GothamBold
-	checkMark.ZIndex               = 14
-	checkMark.Parent               = box
+	checkMark.Text = defaultOn and "✓" or ""
+	checkMark.TextColor3 = Color3.fromRGB(255, 255, 255)
+	checkMark.TextSize = 9
+	checkMark.Font = Enum.Font.GothamBold
+	checkMark.ZIndex = 14
+	checkMark.Parent = box
 
 	local lbl = Instance.new("TextLabel")
-	lbl.Size             = UDim2.new(0, 50, 1, 0)
-	lbl.Position         = UDim2.new(0, 18, 0, 0)
+	lbl.Size = UDim2.new(0, 50, 1, 0)
+	lbl.Position = UDim2.new(0, 18, 0, 0)
 	lbl.BackgroundTransparency = 1
-	lbl.Text             = label
-	lbl.TextColor3       = Colors.TextSecondary
-	lbl.TextSize         = 10
-	lbl.Font             = Enum.Font.Gotham
-	lbl.TextXAlignment   = Enum.TextXAlignment.Left
-	lbl.ZIndex           = 13
-	lbl.Parent           = container
+	lbl.Text = label
+	lbl.TextColor3 = Colors.TextSecondary
+	lbl.TextSize = 10
+	lbl.Font = Enum.Font.Gotham
+	lbl.TextXAlignment = Enum.TextXAlignment.Left
+	lbl.ZIndex = 13
+	lbl.Parent = container
 
 	local hitbox = Instance.new("TextButton")
-	hitbox.Size                 = UDim2.new(1, 0, 1, 0)
+	hitbox.Size = UDim2.new(1, 0, 1, 0)
 	hitbox.BackgroundTransparency = 1
-	hitbox.Text                 = ""
-	hitbox.ZIndex               = 15
-	hitbox.Parent               = container
+	hitbox.Text = ""
+	hitbox.ZIndex = 15
+	hitbox.Parent = container
 
 	local enabled = defaultOn
 	hitbox.MouseButton1Click:Connect(function()
@@ -985,56 +654,51 @@ local function CreateCheckbox(parent, label, defaultOn, xPos, yPos)
 end
 
 local function ToggleOn(bg, knob)
-	TweenService:Create(knob, FastTween, {
-		Position = UDim2.new(0, 27, 0.5, -11),
-		BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	}):Play()
+	TweenService:Create(knob, FastTween, {Position = UDim2.new(0, 27, 0.5, -11), BackgroundColor3 = Color3.fromRGB(255,255,255)}):Play()
 	TweenService:Create(bg, FastTween, {BackgroundColor3 = Colors.ToggleOn}):Play()
 end
 
 local function ToggleOff(bg, knob)
-	TweenService:Create(knob, FastTween, {
-		Position = UDim2.new(0, 3, 0.5, -11),
-		BackgroundColor3 = Color3.fromRGB(200, 200, 220)
-	}):Play()
+	TweenService:Create(knob, FastTween, {Position = UDim2.new(0, 3, 0.5, -11), BackgroundColor3 = Color3.fromRGB(200,200,220)}):Play()
 	TweenService:Create(bg, FastTween, {BackgroundColor3 = Colors.ToggleOff}):Play()
 end
 
 -- =====================
---   TAB BUTTONS
+--   TAB BUTTONS  (3 abas agora)
 -- =====================
 local TabButtons = {}
 
 local function CreateTab(label, index, total)
 	local btn = Instance.new("TextButton")
-	btn.Name             = label
-	btn.Size             = UDim2.new(1/total, 0, 1, 0)
-	btn.Position         = UDim2.new((index - 1) / total, 0, 0, 0)
+	btn.Name = label
+	btn.Size = UDim2.new(1/total, 0, 1, 0)
+	btn.Position = UDim2.new((index - 1) / total, 0, 0, 0)
 	btn.BackgroundColor3 = Colors.TabInactive
-	btn.BorderSizePixel  = 0
-	btn.Text             = label
-	btn.TextColor3       = Colors.TextSecondary
-	btn.TextSize         = 11
-	btn.Font             = Enum.Font.GothamBold
-	btn.AutoButtonColor  = false
+	btn.BorderSizePixel = 0
+	btn.Text = label
+	btn.TextColor3 = Colors.TextSecondary
+	btn.TextSize = 11
+	btn.Font = Enum.Font.GothamBold
+	btn.AutoButtonColor = false
 	btn.ClipsDescendants = true
-	btn.ZIndex           = 12
-	btn.Parent           = TabBar
+	btn.ZIndex = 12
+	btn.Parent = TabBar
 
 	local indicator = Instance.new("Frame")
-	indicator.Size                 = UDim2.new(0.6, 0, 0, 2)
-	indicator.Position             = UDim2.new(0.2, 0, 1, -2)
-	indicator.BackgroundColor3     = Colors.Accent
-	indicator.BorderSizePixel      = 0
+	indicator.Size = UDim2.new(0.6, 0, 0, 2)
+	indicator.Position = UDim2.new(0.2, 0, 1, -2)
+	indicator.BackgroundColor3 = Colors.Accent
+	indicator.BorderSizePixel = 0
 	indicator.BackgroundTransparency = 1
-	indicator.ZIndex               = 13
-	indicator.Parent               = btn
+	indicator.ZIndex = 13
+	indicator.Parent = btn
 	Instance.new("UICorner", indicator).CornerRadius = UDim.new(1, 0)
 
 	TabButtons[label] = {btn = btn, indicator = indicator}
 	return btn
 end
 
+-- 3 tabs: MAIN | PLAYER | SETTINGS
 local tabMain     = CreateTab("MAIN",     1, 3)
 local tabPlayer   = CreateTab("PLAYER",   2, 3)
 local tabSettings = CreateTab("SETTINGS", 3, 3)
@@ -1047,55 +711,71 @@ local PagePlayer   = CreatePage("PLAYER")
 local PageSettings = CreatePage("SETTINGS")
 
 -- ============  MAIN  ============
+-- Card do Aimbot: começa colapsado (58px), expande ao ativar (152px)
 local AIMBOT_CARD_COLLAPSED = 58
 local AIMBOT_CARD_EXPANDED  = 152
 local gmCard, gmStroke = CreateCard(PageMain, 1, AIMBOT_CARD_COLLAPSED)
-gmCard.ClipsDescendants = true
+gmCard.ClipsDescendants = true  -- clips os sliders quando colapsado
 local gmSub = AddCardInfo(gmCard, "🎯", Colors.Accent, "Aimbot", "OFF")
 local gmBG, gmKnob, gmHit = AddToggle(gmCard, 0.5)
-local AimbotSmoothnessSlider = CreateSlider(gmCard, 0.75, 1.0, 1.0, "Smoothness:", 64)
-local AimbotFOVSlider        = CreateSlider(gmCard, 50, 300, 150, "FOV:", 106, "%d")
 
+-- Slider de Smoothness (aparece ao expandir)
+local AimbotSmoothnessSlider = CreateSlider(gmCard, 0.75, 1.0, 1.0, "Smoothness:", 64)
+
+-- Slider de FOV (aparece ao expandir, abaixo do Smoothness)
+local AimbotFOVSlider = CreateSlider(gmCard, 50, 300, 150, "FOV:", 106, "%d")
+
+-- Card do ESP: começa colapsado (58px), expande ao ativar (130px) para mostrar checkboxes
 local ESP_CARD_COLLAPSED = 58
-local ESP_CARD_EXPANDED  = 158
+local ESP_CARD_EXPANDED  = 130
 local spCard, spStroke = CreateCard(PageMain, 2, ESP_CARD_COLLAPSED)
 spCard.ClipsDescendants = true
 local spSub = AddCardInfo(spCard, "👁️", Color3.fromRGB(251, 191, 36), "ESP", "OFF")
 local spBG, spKnob, spHit = AddToggle(spCard, 0.5)
 
+-- Separador visual entre toggle e checkboxes
 local espSep = Instance.new("Frame")
-espSep.Size             = UDim2.new(1, -24, 0, 1)
-espSep.Position         = UDim2.new(0, 12, 0, 62)
+espSep.Size = UDim2.new(1, -24, 0, 1)
+espSep.Position = UDim2.new(0, 12, 0, 62)
 espSep.BackgroundColor3 = Colors.Border
-espSep.BorderSizePixel  = 0
-espSep.ZIndex           = 12
-espSep.Parent           = spCard
+espSep.BorderSizePixel = 0
+espSep.ZIndex = 12
+espSep.Parent = spCard
 
+-- Label "Opções:" acima dos checkboxes
 local espOptLabel = Instance.new("TextLabel")
-espOptLabel.Size                 = UDim2.new(1, -24, 0, 14)
-espOptLabel.Position             = UDim2.new(0, 12, 0, 67)
+espOptLabel.Size = UDim2.new(1, -24, 0, 14)
+espOptLabel.Position = UDim2.new(0, 12, 0, 67)
 espOptLabel.BackgroundTransparency = 1
-espOptLabel.Text                 = "Opções:"
-espOptLabel.TextColor3           = Colors.TextSecondary
-espOptLabel.TextSize             = 9
-espOptLabel.Font                 = Enum.Font.Gotham
-espOptLabel.TextXAlignment       = Enum.TextXAlignment.Left
-espOptLabel.ZIndex               = 12
-espOptLabel.Parent               = spCard
+espOptLabel.Text = "Opções:"
+espOptLabel.TextColor3 = Colors.TextSecondary
+espOptLabel.TextSize = 9
+espOptLabel.Font = Enum.Font.Gotham
+espOptLabel.TextXAlignment = Enum.TextXAlignment.Left
+espOptLabel.ZIndex = 12
+espOptLabel.Parent = spCard
 
+-- Checkboxes fila 1: Line | Box | Name   (y=83)
 local ESP_CB_Line     = CreateCheckbox(spCard, "Line",     true,  12,  83)
 local ESP_CB_Box      = CreateCheckbox(spCard, "Box",      false, 82,  83)
 local ESP_CB_Name     = CreateCheckbox(spCard, "Name",     true,  152, 83)
+
+-- Checkboxes fila 2: Distance | Chams   (y=108)
 local ESP_CB_Distance = CreateCheckbox(spCard, "Distance", true,  12,  108)
 local ESP_CB_Chams    = CreateCheckbox(spCard, "Chams",    false, 82,  108)
-local ESP_CB_Eggs     = CreateCheckbox(spCard, "Eggs",     false, 12,  133)
 
+-- =============================================
+--   TELEPORT KILL CARD - EXPANSÍVEL COM SLIDER
+--   Colapsado: 58px | Expandido: 110px
+-- =============================================
 local TK_CARD_COLLAPSED = 58
 local TK_CARD_EXPANDED  = 110
 local tkCard, tkStroke = CreateCard(PageMain, 3, TK_CARD_COLLAPSED)
 tkCard.ClipsDescendants = true
 local tkSub = AddCardInfo(tkCard, "💨", Color3.fromRGB(167, 139, 250), "Teleport Kill", "OFF")
 local tkBG, tkKnob, tkHit = AddToggle(tkCard, 0.5)
+
+-- Slider de distância do TK (0 = mesma posição, 10 = 10 studs atrás)
 local TK_DistanceSlider = CreateSlider(tkCard, 0, 10, 3, "Distance:", 64, "%.1f")
 
 -- ============  PLAYER  ============
@@ -1113,99 +793,98 @@ local ncBG, ncKnob, ncHit = AddToggle(ncCard)
 
 -- ============  SETTINGS  ============
 local infoCard = Instance.new("Frame")
-infoCard.Size             = UDim2.new(1, 0, 0, 70)
+infoCard.Size = UDim2.new(1, 0, 0, 70)
 infoCard.BackgroundColor3 = Color3.fromRGB(26, 26, 38)
-infoCard.BorderSizePixel  = 0
-infoCard.LayoutOrder      = 1
-infoCard.ZIndex           = 11
-infoCard.Parent           = PageSettings
+infoCard.BorderSizePixel = 0
+infoCard.LayoutOrder = 1
+infoCard.ZIndex = 11
+infoCard.Parent = PageSettings
 Instance.new("UICorner", infoCard).CornerRadius = UDim.new(0, 12)
-local iStroke = Instance.new("UIStroke")
-iStroke.Color     = Colors.Border
-iStroke.Thickness = 1
-iStroke.Parent    = infoCard
+local iStroke = Instance.new("UIStroke"); iStroke.Color = Colors.Border; iStroke.Thickness = 1; iStroke.Parent = infoCard
 
 local infoTitle = Instance.new("TextLabel")
-infoTitle.Size             = UDim2.new(1, -20, 0, 24)
-infoTitle.Position         = UDim2.new(0, 14, 0, 10)
+infoTitle.Size = UDim2.new(1, -20, 0, 24)
+infoTitle.Position = UDim2.new(0, 14, 0, 10)
 infoTitle.BackgroundTransparency = 1
-infoTitle.Text             = "Rivals Script  v1.9"
-infoTitle.TextColor3       = Colors.TextPrimary
-infoTitle.TextSize         = 13
-infoTitle.Font             = Enum.Font.GothamBold
-infoTitle.TextXAlignment   = Enum.TextXAlignment.Left
-infoTitle.ZIndex           = 12
-infoTitle.Parent           = infoCard
+infoTitle.Text = "⚡ Rivals Script  v1.2"
+infoTitle.TextColor3 = Colors.TextPrimary
+infoTitle.TextSize = 13
+infoTitle.Font = Enum.Font.GothamBold
+infoTitle.TextXAlignment = Enum.TextXAlignment.Left
+infoTitle.ZIndex = 12
+infoTitle.Parent = infoCard
 
 local infoSub = Instance.new("TextLabel")
-infoSub.Size             = UDim2.new(1, -20, 0, 20)
-infoSub.Position         = UDim2.new(0, 14, 0, 38)
+infoSub.Size = UDim2.new(1, -20, 0, 20)
+infoSub.Position = UDim2.new(0, 14, 0, 38)
 infoSub.BackgroundTransparency = 1
-infoSub.Text             = "Aimbot  •  ESP  •  Teleport Kill  •  Player  •  Visual FX"
-infoSub.TextColor3       = Colors.TextSecondary
-infoSub.TextSize         = 11
-infoSub.Font             = Enum.Font.Gotham
-infoSub.TextXAlignment   = Enum.TextXAlignment.Left
-infoSub.ZIndex           = 12
-infoSub.Parent           = infoCard
+infoSub.Text = "Aimbot  •  ESP  •  Teleport Kill  •  Player"
+infoSub.TextColor3 = Colors.TextSecondary
+infoSub.TextSize = 11
+infoSub.Font = Enum.Font.Gotham
+infoSub.TextXAlignment = Enum.TextXAlignment.Left
+infoSub.ZIndex = 12
+infoSub.Parent = infoCard
 
 local discordCard = Instance.new("Frame")
-discordCard.Size             = UDim2.new(1, 0, 0, 58)
+discordCard.Size = UDim2.new(1, 0, 0, 58)
 discordCard.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
-discordCard.BorderSizePixel  = 0
-discordCard.LayoutOrder      = 2
-discordCard.ZIndex           = 11
-discordCard.Parent           = PageSettings
+discordCard.BorderSizePixel = 0
+discordCard.LayoutOrder = 2
+discordCard.ZIndex = 11
+discordCard.Parent = PageSettings
 Instance.new("UICorner", discordCard).CornerRadius = UDim.new(0, 12)
 
 local discordIconBox = Instance.new("TextLabel")
-discordIconBox.Size             = UDim2.new(0, 36, 0, 36)
-discordIconBox.Position         = UDim2.new(0, 10, 0.5, -18)
+discordIconBox.Size = UDim2.new(0, 36, 0, 36)
+discordIconBox.Position = UDim2.new(0, 10, 0.5, -18)
 discordIconBox.BackgroundColor3 = Color3.fromRGB(60, 70, 200)
-discordIconBox.Text             = "💬"
-discordIconBox.TextSize         = 16
-discordIconBox.Font             = Enum.Font.GothamBold
-discordIconBox.TextColor3       = Color3.fromRGB(255, 255, 255)
-discordIconBox.BorderSizePixel  = 0
-discordIconBox.ZIndex           = 12
-discordIconBox.Parent           = discordCard
+discordIconBox.Text = "💬"
+discordIconBox.TextSize = 16
+discordIconBox.Font = Enum.Font.GothamBold
+discordIconBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+discordIconBox.BorderSizePixel = 0
+discordIconBox.ZIndex = 12
+discordIconBox.Parent = discordCard
 Instance.new("UICorner", discordIconBox).CornerRadius = UDim.new(0, 10)
 
 local discordTitle = Instance.new("TextLabel")
-discordTitle.Size             = UDim2.new(1, -70, 0, 20)
-discordTitle.Position         = UDim2.new(0, 56, 0, 10)
+discordTitle.Size = UDim2.new(1, -70, 0, 20)
+discordTitle.Position = UDim2.new(0, 56, 0, 10)
 discordTitle.BackgroundTransparency = 1
-discordTitle.Text             = "Discord"
-discordTitle.TextColor3       = Color3.fromRGB(255, 255, 255)
-discordTitle.TextSize         = 13
-discordTitle.Font             = Enum.Font.GothamBold
-discordTitle.TextXAlignment   = Enum.TextXAlignment.Left
-discordTitle.ZIndex           = 12
-discordTitle.Parent           = discordCard
+discordTitle.Text = "Discord"
+discordTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+discordTitle.TextSize = 13
+discordTitle.Font = Enum.Font.GothamBold
+discordTitle.TextXAlignment = Enum.TextXAlignment.Left
+discordTitle.ZIndex = 12
+discordTitle.Parent = discordCard
 
 local discordSub = Instance.new("TextLabel")
-discordSub.Size             = UDim2.new(1, -70, 0, 16)
-discordSub.Position         = UDim2.new(0, 56, 0, 32)
+discordSub.Size = UDim2.new(1, -70, 0, 16)
+discordSub.Position = UDim2.new(0, 56, 0, 32)
 discordSub.BackgroundTransparency = 1
-discordSub.Text             = "Join Discord"
-discordSub.TextColor3       = Color3.fromRGB(200, 210, 255)
-discordSub.TextSize         = 11
-discordSub.Font             = Enum.Font.Gotham
-discordSub.TextXAlignment   = Enum.TextXAlignment.Left
-discordSub.ZIndex           = 12
-discordSub.Parent           = discordCard
+discordSub.Text = "Join Discord"
+discordSub.TextColor3 = Color3.fromRGB(200, 210, 255)
+discordSub.TextSize = 11
+discordSub.Font = Enum.Font.Gotham
+discordSub.TextXAlignment = Enum.TextXAlignment.Left
+discordSub.ZIndex = 12
+discordSub.Parent = discordCard
 
 local discordBtn = Instance.new("TextButton")
-discordBtn.Size                 = UDim2.new(1, 0, 1, 0)
+discordBtn.Size = UDim2.new(1, 0, 1, 0)
 discordBtn.BackgroundTransparency = 1
-discordBtn.Text                 = ""
-discordBtn.ZIndex               = 13
-discordBtn.Parent               = discordCard
+discordBtn.Text = ""
+discordBtn.ZIndex = 13
+discordBtn.Parent = discordCard
 
 discordBtn.MouseButton1Click:Connect(function()
-	pcall(function() setclipboard("https://discord.gg/FMP62xQAEa") end)
+	setclipboard("https://discord.gg/FMP62xQAEa")
 	discordSub.Text = "Link copied! ✓"
-	task.delay(2, function() discordSub.Text = "Join Discord" end)
+	task.delay(2, function()
+		discordSub.Text = "Join Discord"
+	end)
 end)
 
 -- =====================
@@ -1222,7 +901,7 @@ local function SwitchTab(name)
 	for tabName, data in pairs(TabButtons) do
 		local active = tabName == name
 		TweenService:Create(data.btn, FastTween, {
-			TextColor3       = active and Colors.TextPrimary or Colors.TextSecondary,
+			TextColor3 = active and Colors.TextPrimary or Colors.TextSecondary,
 			BackgroundColor3 = active and Color3.fromRGB(26, 26, 38) or Colors.TabInactive,
 		}):Play()
 		TweenService:Create(data.indicator, FastTween, {
@@ -1241,11 +920,15 @@ tabSettings.MouseButton1Click:Connect(function() SwitchTab("SETTINGS") end)
 SwitchTab("MAIN")
 
 -- =============================================
---   AIMBOT V7
+--   AIMBOT V7 - CORRIGIDO COM SLIDER
+--   - FOV centralizado na crosshair real
+--   - Mira trava e acompanha o alvo
+--   - Bloqueia câmera/mouse enquanto travado
+--   - Smoothness ajustável via slider
 -- =============================================
 local AimSettings = {
-	FOV        = 150,
-	Smoothness = 1.0,
+	FOV        = 150,   -- atualizado em tempo real pelo slider
+	Smoothness = 1.0,   -- atualizado em tempo real pelo slider
 	TargetPart = "Head",
 	TeamCheck  = true,
 	WallCheck  = true,
@@ -1258,7 +941,6 @@ local Aimbot_InputConn    = nil
 
 local function GetScreenCenter()
 	local cam = workspace.CurrentCamera
-	if not cam then return Vector2.new(0, 0) end
 	return Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
 end
 
@@ -1266,7 +948,9 @@ local function Aimbot_GetVM()
 	local vmFolder = workspace:FindFirstChild("ViewModels")
 	if vmFolder and vmFolder:FindFirstChild("FirstPerson") then
 		for _, v in pairs(vmFolder.FirstPerson:GetChildren()) do
-			if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") then return v end
+			if v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") then
+				return v
+			end
 		end
 	end
 	return nil
@@ -1274,10 +958,13 @@ end
 
 local function Aimbot_IsVisible(part, char)
 	local cam = workspace.CurrentCamera
-	if not cam then return false end
 	local ray = RaycastParams.new()
 	ray.FilterType = Enum.RaycastFilterType.Exclude
-	ray.FilterDescendantsInstances = {Player.Character, cam, workspace:FindFirstChild("ViewModels")}
+	ray.FilterDescendantsInstances = {
+		Player.Character,
+		cam,
+		workspace:FindFirstChild("ViewModels")
+	}
 	local origin    = cam.CFrame.Position
 	local direction = part.Position - origin
 	local res = workspace:Raycast(origin, direction, ray)
@@ -1286,7 +973,6 @@ end
 
 local function Aimbot_InFOV(part)
 	local cam = workspace.CurrentCamera
-	if not cam then return false, math.huge end
 	local pos, onScreen = cam:WorldToViewportPoint(part.Position)
 	if not onScreen then return false, math.huge end
 	local screenPos = Vector2.new(pos.X, pos.Y)
@@ -1294,7 +980,7 @@ local function Aimbot_InFOV(part)
 	return dist <= AimSettings.FOV, dist
 end
 
-local AIMBOT_MAX_DISTANCE_STUDS = 200 * 3.57
+local AIMBOT_MAX_DISTANCE_STUDS = 200 * 3.57  -- 200 metros em studs
 
 local function Aimbot_GetTarget()
 	local target, shortest = nil, AimSettings.FOV
@@ -1307,6 +993,7 @@ local function Aimbot_GetTarget()
 				local part = p.Character:FindFirstChild(AimSettings.TargetPart)
 				local hum  = p.Character:FindFirstChild("Humanoid")
 				if part and hum and hum.Health > 0 then
+					-- Filtro de distância: máximo 200 metros
 					if myHRP then
 						local studs = (part.Position - myHRP.Position).Magnitude
 						if studs > AIMBOT_MAX_DISTANCE_STUDS then continue end
@@ -1314,7 +1001,7 @@ local function Aimbot_GetTarget()
 					local inFOV, dist = Aimbot_InFOV(part)
 					if inFOV and dist < shortest then
 						if not AimSettings.WallCheck or Aimbot_IsVisible(part, p.Character) then
-							target   = part
+							target  = part
 							shortest = dist
 						end
 					end
@@ -1338,49 +1025,56 @@ end
 local function Aimbot_Start()
 	Aimbot_Active = true
 
-	if Aimbot_ScreenGui then pcall(function() Aimbot_ScreenGui:Destroy() end) end
+	if Aimbot_ScreenGui then Aimbot_ScreenGui:Destroy() end
 	Aimbot_ScreenGui = Instance.new("ScreenGui")
-	Aimbot_ScreenGui.Name           = "Aimbot_FOV_V7"
-	Aimbot_ScreenGui.ResetOnSpawn   = false
+	Aimbot_ScreenGui.Name = "Aimbot_FOV_V7"
+	Aimbot_ScreenGui.ResetOnSpawn = false
 	Aimbot_ScreenGui.IgnoreGuiInset = true
-	Aimbot_ScreenGui.DisplayOrder   = 999999998
-	Aimbot_ScreenGui.Parent         = PlayerGui
+	Aimbot_ScreenGui.DisplayOrder = 999999998
+	Aimbot_ScreenGui.Parent = PlayerGui
 
 	local fovFrame = Instance.new("Frame")
-	fovFrame.Name                 = "FOVFrame"
-	fovFrame.Size                 = UDim2.new(0, AimSettings.FOV * 2, 0, AimSettings.FOV * 2)
-	fovFrame.AnchorPoint          = Vector2.new(0.5, 0.5)
-	fovFrame.Position             = UDim2.new(0.5, 0, 0.5, 0)
+	fovFrame.Name = "FOVFrame"
+	fovFrame.Size = UDim2.new(0, AimSettings.FOV * 2, 0, AimSettings.FOV * 2)
+	fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	fovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 	fovFrame.BackgroundTransparency = 1
-	fovFrame.ZIndex               = 10
-	fovFrame.Parent               = Aimbot_ScreenGui
+	fovFrame.ZIndex = 10
+	fovFrame.Parent = Aimbot_ScreenGui
 
 	local uiStroke = Instance.new("UIStroke")
-	uiStroke.Name      = "FOVStroke"
-	uiStroke.Color     = Color3.fromRGB(255, 255, 255)
+	uiStroke.Name = "FOVStroke"
+	uiStroke.Color = Color3.fromRGB(255, 255, 255)
 	uiStroke.Thickness = 2
-	uiStroke.Parent    = fovFrame
+	uiStroke.Parent = fovFrame
 	Instance.new("UICorner", fovFrame).CornerRadius = UDim.new(1, 0)
 
 	RunService:BindToRenderStep("AimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
 		if not Aimbot_Active then return end
 
+		-- Atualiza smoothness e FOV dos sliders em tempo real
 		AimSettings.Smoothness = AimbotSmoothnessSlider.GetValue()
 		AimSettings.FOV        = AimbotFOVSlider.GetValue()
+
+		-- Atualiza tamanho do círculo de FOV em tempo real
 		fovFrame.Size = UDim2.new(0, AimSettings.FOV * 2, 0, AimSettings.FOV * 2)
 
 		local cam    = workspace.CurrentCamera
-		if not cam then return end
 		local stroke = fovFrame:FindFirstChild("FOVStroke")
 
 		if Aimbot_LockedTarget then
 			if not Aimbot_IsTargetValid(Aimbot_LockedTarget) then
 				Aimbot_LockedTarget = nil
-				if Aimbot_InputConn then Aimbot_InputConn:Disconnect(); Aimbot_InputConn = nil end
+				if Aimbot_InputConn then
+					Aimbot_InputConn:Disconnect()
+					Aimbot_InputConn = nil
+				end
 			end
 		end
 
-		if not Aimbot_LockedTarget then Aimbot_LockedTarget = Aimbot_GetTarget() end
+		if not Aimbot_LockedTarget then
+			Aimbot_LockedTarget = Aimbot_GetTarget()
+		end
 
 		if Aimbot_LockedTarget then
 			local targetPos = Aimbot_LockedTarget.Position
@@ -1396,7 +1090,9 @@ local function Aimbot_Start()
 			local vm = Aimbot_GetVM()
 			if vm then
 				local vmHRP = vm:FindFirstChild("HumanoidRootPart")
-				if vmHRP then vmHRP.CFrame = cam.CFrame end
+				if vmHRP then
+					vmHRP.CFrame = cam.CFrame
+				end
 			end
 
 			if stroke then stroke.Color = Color3.fromRGB(255, 50, 50) end
@@ -1407,11 +1103,20 @@ local function Aimbot_Start()
 end
 
 local function Aimbot_Stop()
-	Aimbot_Active       = false
+	Aimbot_Active = false
 	Aimbot_LockedTarget = nil
-	if Aimbot_InputConn then Aimbot_InputConn:Disconnect(); Aimbot_InputConn = nil end
+
+	if Aimbot_InputConn then
+		Aimbot_InputConn:Disconnect()
+		Aimbot_InputConn = nil
+	end
+
 	pcall(function() RunService:UnbindFromRenderStep("AimbotUpdate") end)
-	if Aimbot_ScreenGui then pcall(function() Aimbot_ScreenGui:Destroy() end); Aimbot_ScreenGui = nil end
+
+	if Aimbot_ScreenGui then
+		Aimbot_ScreenGui:Destroy()
+		Aimbot_ScreenGui = nil
+	end
 end
 
 gmHit.MouseButton1Click:Connect(function()
@@ -1420,88 +1125,32 @@ gmHit.MouseButton1Click:Connect(function()
 		ToggleOn(gmBG, gmKnob)
 		TweenService:Create(gmStroke, FastTween, {Color = Colors.Accent}):Play()
 		TweenService:Create(MainStroke, FastTween, {Color = Colors.AccentGlow}):Play()
-		gmSub.Text = "ON"; gmSub.TextColor3 = Colors.Success
-		TweenService:Create(gmCard, SlowTween, {Size = UDim2.new(1, 0, 0, AIMBOT_CARD_EXPANDED)}):Play()
+		gmSub.Text = "ON"
+		gmSub.TextColor3 = Colors.Success
+		-- Expande o card com animação suave para mostrar os sliders
+		TweenService:Create(gmCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, AIMBOT_CARD_EXPANDED)
+		}):Play()
 		Aimbot_Start()
 	else
 		ToggleOff(gmBG, gmKnob)
 		TweenService:Create(gmStroke, FastTween, {Color = Colors.Border}):Play()
 		TweenService:Create(MainStroke, FastTween, {Color = Colors.Border}):Play()
-		gmSub.Text = "OFF"; gmSub.TextColor3 = Colors.TextSecondary
-		TweenService:Create(gmCard, SlowTween, {Size = UDim2.new(1, 0, 0, AIMBOT_CARD_COLLAPSED)}):Play()
+		gmSub.Text = "OFF"
+		gmSub.TextColor3 = Colors.TextSecondary
+		-- Colapsa o card ocultando os sliders com animação
+		TweenService:Create(gmCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, AIMBOT_CARD_COLLAPSED)
+		}):Play()
 		Aimbot_Stop()
 	end
 end)
 
 -- =============================================
---   EGG ESP
--- =============================================
-local EGG_MESH_ID = "rbxassetid://1527559"
-local EGG_COLOR   = "White"
-
-local function EggESP_CreateForCharacter(character)
-	local head = character:FindFirstChild("Head")
-	if not head then return end
-	if character:FindFirstChild("EggESP") then return end
-
-	local egg = Instance.new("Part")
-	egg.Name       = "EggESP"
-	egg.Size       = Vector3.new(1, 1, 1)
-	egg.BrickColor = BrickColor.new(EGG_COLOR)
-	egg.CanCollide = false
-	egg.Anchored   = false
-	egg.Parent     = character
-
-	local mesh = Instance.new("SpecialMesh", egg)
-	mesh.MeshType = Enum.MeshType.FileMesh
-	mesh.MeshId   = EGG_MESH_ID
-	mesh.Scale    = Vector3.new(1.5, 1.5, 1.5)
-
-	local weld = Instance.new("Weld", egg)
-	weld.Part0 = head
-	weld.Part1 = egg
-	weld.C0    = CFrame.new(0, 1.0, 0)
-
-	local highlight = Instance.new("Highlight")
-	highlight.Name                = "EggHighlight"
-	highlight.FillColor           = Color3.fromRGB(255, 255, 255)
-	highlight.OutlineColor        = Color3.fromRGB(255, 215, 0)
-	highlight.FillTransparency    = 0.4
-	highlight.OutlineTransparency = 0
-	highlight.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
-	highlight.Parent              = egg
-
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name        = "EggTag"
-	billboard.Size        = UDim2.new(0, 50, 0, 50)
-	billboard.StudsOffset = Vector3.new(0, 2, 0)
-	billboard.AlwaysOnTop = true
-	billboard.Parent      = egg
-end
-
-local function EggESP_RemoveFromCharacter(character)
-	if not character then return end
-	local egg = character:FindFirstChild("EggESP")
-	if egg then egg:Destroy() end
-end
-
-local function EggESP_RemoveAll()
-	for _, p in pairs(Players:GetPlayers()) do
-		if p ~= Player and p.Character then
-			EggESP_RemoveFromCharacter(p.Character)
-		end
-	end
-end
-
--- =============================================
---   ESP DEFINITIVO
+--   ESP DEFINITIVO - METROS + FILTRO TIME
+--   + TRACERS NO NICKNAME (BILLBOARD)
 -- =============================================
 local Camera = workspace.CurrentCamera
-
--- Atualiza referência da câmera se mudar
-workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
-	Camera = workspace.CurrentCamera
-end)
 
 local ESP_Settings = {
 	VisibleColor    = Color3.fromRGB(0, 255, 0),
@@ -1513,8 +1162,8 @@ local ESP_Settings = {
 }
 
 local ESP_Tracers    = {}
-local ESP_Boxes      = {}
-local ESP_Chams      = {}
+local ESP_Boxes      = {}   -- BillboardGui de Box por player
+local ESP_Chams      = {}   -- Highlight de Chams por player
 local ESP_Connection = nil
 
 local function ESP_GetTeamID(p)
@@ -1525,7 +1174,9 @@ local function ESP_IsEnemy(p)
 	if ESP_Settings.KillAllMode then return true end
 	local myTeam     = Player.Team or ESP_GetTeamID(Player)
 	local targetTeam = p.Team     or ESP_GetTeamID(p)
-	if myTeam and targetTeam and myTeam == targetTeam then return false end
+	if myTeam and targetTeam and myTeam == targetTeam then
+		return false
+	end
 	return true
 end
 
@@ -1534,12 +1185,27 @@ local function ESP_GetDistanceInMeters(p1, p2)
 	return math.floor(studs / ESP_Settings.MetrosConversao)
 end
 
+local function ESP_IsVisible(targetPart)
+	local origin    = Camera.CFrame.Position
+	local direction = (targetPart.Position - origin).Unit * (targetPart.Position - origin).Magnitude
+	local params    = RaycastParams.new()
+	params.FilterDescendantsInstances = {Player.Character, Camera}
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	local result = workspace:Raycast(origin, direction, params)
+	if result then
+		return result.Instance:IsDescendantOf(targetPart.Parent)
+	end
+	return true
+end
+
 local function ESP_CleanupPlayer(p)
+	-- Limpa tracer (line)
 	if ESP_Tracers[p.Name] then
 		pcall(function() ESP_Tracers[p.Name].Visible = false end)
 		pcall(function() ESP_Tracers[p.Name]:Remove() end)
 		ESP_Tracers[p.Name] = nil
 	end
+	-- Limpa billboard de nome/distância
 	if p.Character then
 		local head = p.Character:FindFirstChild("Head")
 		if head then
@@ -1547,6 +1213,7 @@ local function ESP_CleanupPlayer(p)
 			if b then b:Destroy() end
 		end
 	end
+	-- Limpa Box (BillboardGui)
 	if ESP_Boxes[p.Name] then
 		pcall(function() ESP_Boxes[p.Name]:Destroy() end)
 		ESP_Boxes[p.Name] = nil
@@ -1558,6 +1225,7 @@ local function ESP_CleanupPlayer(p)
 			if bx then bx:Destroy() end
 		end
 	end
+	-- Limpa Chams (Highlight)
 	if ESP_Chams[p.Name] then
 		pcall(function() ESP_Chams[p.Name]:Destroy() end)
 		ESP_Chams[p.Name] = nil
@@ -1565,37 +1233,35 @@ local function ESP_CleanupPlayer(p)
 	if p.Character then
 		local hl = p.Character:FindFirstChild("Chams_Highlight")
 		if hl then hl:Destroy() end
-		EggESP_RemoveFromCharacter(p.Character)
 	end
 end
 
 local function ESP_Stop()
-	if ESP_Connection then ESP_Connection:Disconnect(); ESP_Connection = nil end
+	if ESP_Connection then
+		ESP_Connection:Disconnect()
+		ESP_Connection = nil
+	end
 	for _, p in pairs(Players:GetPlayers()) do
 		ESP_CleanupPlayer(p)
 	end
 	ESP_Tracers = {}
 	ESP_Boxes   = {}
 	ESP_Chams   = {}
-	EggESP_RemoveAll()
 end
 
-local ESP_MAX_DISTANCE_STUDS = 200 * 3.57
+local ESP_MAX_DISTANCE_STUDS = 200 * 3.57  -- 200 metros em studs
 
 local function ESP_Start()
 	ESP_Connection = RunService.RenderStepped:Connect(function()
-		local cam   = Camera
-		if not cam then return end
-
 		local myChar = Player.Character
 		local myHRP  = myChar and myChar:FindFirstChild("HumanoidRootPart")
 
+		-- lê estado dos checkboxes em tempo real
 		local showLine     = ESP_CB_Line.GetValue()
 		local showBox      = ESP_CB_Box.GetValue()
 		local showName     = ESP_CB_Name.GetValue()
 		local showDistance = ESP_CB_Distance.GetValue()
 		local showChams    = ESP_CB_Chams.GetValue()
-		local showEggs     = ESP_CB_Eggs.GetValue()
 
 		for _, p in pairs(Players:GetPlayers()) do
 			if p ~= Player
@@ -1603,6 +1269,7 @@ local function ESP_Start()
 				and p.Character:FindFirstChild("HumanoidRootPart")
 				and p.Character:FindFirstChild("Head") then
 
+				-- Filtro de distância: máximo 200 metros
 				local hrpEnemy = p.Character.HumanoidRootPart
 				if myHRP then
 					local studs = (hrpEnemy.Position - myHRP.Position).Magnitude
@@ -1616,8 +1283,10 @@ local function ESP_Start()
 					local head = p.Character.Head
 					local hrp  = p.Character.HumanoidRootPart
 
+					-- ======== CHAMS (Highlight, enemy only) ========
 					if showChams then
 						if not ESP_Chams[p.Name] or not ESP_Chams[p.Name].Parent then
+							-- remove antigo se bugar
 							local old = p.Character:FindFirstChild("Chams_Highlight")
 							if old then old:Destroy() end
 							local hl = Instance.new("Highlight")
@@ -1639,31 +1308,34 @@ local function ESP_Start()
 						if old then old:Destroy() end
 					end
 
+					-- ======== BOX ESP (BillboardGui, enemy only) ========
 					if showBox then
 						local existingBox = hrp:FindFirstChild("ESP_Box")
 						if not existingBox then
-							local billboard       = Instance.new("BillboardGui")
-							billboard.Name        = "ESP_Box"
-							billboard.Adornee     = hrp
-							billboard.AlwaysOnTop = true
-							billboard.Size        = UDim2.new(4.5, 0, 6, 0)
+							local billboard        = Instance.new("BillboardGui")
+							billboard.Name         = "ESP_Box"
+							billboard.Adornee      = hrp
+							billboard.AlwaysOnTop  = true
+							billboard.Size         = UDim2.new(4.5, 0, 6, 0)
 							billboard.ExtentsOffset = Vector3.new(0, 0, 0)
-							billboard.Parent      = hrp
-							ESP_Boxes[p.Name]     = billboard
+							billboard.Parent       = hrp
+							ESP_Boxes[p.Name]      = billboard
 
-							local frame = Instance.new("Frame")
-							frame.Size  = UDim2.new(1, 0, 1, 0)
+							local frame            = Instance.new("Frame")
+							frame.Size             = UDim2.new(1, 0, 1, 0)
 							frame.BackgroundTransparency = 1
-							frame.Parent = billboard
+							frame.Parent           = billboard
 
-							local stroke = Instance.new("UIStroke")
-							stroke.Thickness       = 2
-							stroke.Color           = Color3.fromRGB(255, 85, 0)
-							stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-							stroke.Transparency    = 0.3
-							stroke.Parent          = frame
+							local stroke           = Instance.new("UIStroke")
+							stroke.Thickness        = 2
+							stroke.Color            = Color3.fromRGB(255, 85, 0)
+							stroke.ApplyStrokeMode  = Enum.ApplyStrokeMode.Border
+							stroke.Transparency     = 0.3
+							stroke.Parent           = frame
 						else
-							local sizeVec = p.Character:GetExtentsSize()
+							-- ajusta tamanho dinamicamente ao corpo
+							local sizeVec  = p.Character:GetExtentsSize()
+							existingBox.Size = UDim2.new(0, 0, 0, 0)
 							existingBox.Size = UDim2.new(sizeVec.X * 0.8, 0, sizeVec.Y * 1.1, 0)
 						end
 					else
@@ -1675,29 +1347,23 @@ local function ESP_Start()
 						if bx then bx:Destroy() end
 					end
 
-					if showEggs then
-						if not p.Character:FindFirstChild("EggESP") then
-							EggESP_CreateForCharacter(p.Character)
-						end
-					else
-						EggESP_RemoveFromCharacter(p.Character)
-					end
-
+					-- ======== LINE + NAME + DISTANCE ========
 					local billboardWorldPos = head.Position + ESP_Settings.BillboardOffset
-					local vector, onScreen  = cam:WorldToViewportPoint(billboardWorldPos)
+					local vector, onScreen  = Camera:WorldToViewportPoint(billboardWorldPos)
 
 					if onScreen then
 						local rayParams = RaycastParams.new()
-						rayParams.FilterDescendantsInstances = {myChar, cam}
+						rayParams.FilterDescendantsInstances = {myChar, Camera}
 						rayParams.FilterType = Enum.RaycastFilterType.Exclude
 						local ray = workspace:Raycast(
-							cam.CFrame.Position,
-							(head.Position - cam.CFrame.Position),
+							Camera.CFrame.Position,
+							(head.Position - Camera.CFrame.Position),
 							rayParams
 						)
 						local isVisible    = not ray or ray.Instance:IsDescendantOf(p.Character)
 						local currentColor = isVisible and ESP_Settings.VisibleColor or ESP_Settings.HiddenColor
 
+						-- LINE
 						if showLine then
 							if not ESP_Tracers[p.Name] then
 								local line          = Drawing.new("Line")
@@ -1707,7 +1373,7 @@ local function ESP_Start()
 							end
 							local line   = ESP_Tracers[p.Name]
 							line.Color   = currentColor
-							line.From    = Vector2.new(cam.ViewportSize.X / 2, 0)
+							line.From    = Vector2.new(Camera.ViewportSize.X / 2, 0)
 							line.To      = Vector2.new(vector.X, vector.Y)
 							line.Visible = true
 						else
@@ -1716,25 +1382,26 @@ local function ESP_Start()
 							end
 						end
 
+						-- NAME + DISTANCE
 						if showName or showDistance then
 							local b = head:FindFirstChild("EnemyBillboard")
 							if not b then
-								b             = Instance.new("BillboardGui", head)
-								b.Name        = "EnemyBillboard"
-								b.AlwaysOnTop = true
-								b.Size        = UDim2.new(0, 150, 0, 50)
-								b.StudsOffset = ESP_Settings.BillboardOffset
-								local t = Instance.new("TextLabel", b)
-								t.Name                   = "InfoLabel"
+								b              = Instance.new("BillboardGui", head)
+								b.Name         = "EnemyBillboard"
+								b.AlwaysOnTop  = true
+								b.Size         = UDim2.new(0, 150, 0, 50)
+								b.StudsOffset  = ESP_Settings.BillboardOffset
+								local t               = Instance.new("TextLabel", b)
+								t.Name                = "InfoLabel"
 								t.BackgroundTransparency = 1
-								t.Size                   = UDim2.new(1, 0, 1, 0)
-								t.Font                   = Enum.Font.GothamBold
-								t.TextSize               = 14
+								t.Size                = UDim2.new(1, 0, 1, 0)
+								t.Font                = Enum.Font.GothamBold
+								t.TextSize            = 14
 								t.TextStrokeTransparency = 0
 							end
 							local label = b:FindFirstChild("InfoLabel")
 							if label then
-								local metros   = myHRP and ESP_GetDistanceInMeters(myHRP, hrp) or 0
+								local metros = myHRP and ESP_GetDistanceInMeters(myHRP, hrp) or 0
 								local namePart = showName and p.Name or ""
 								local distPart = showDistance and string.format("[%d Metros]", metros) or ""
 								if showName and showDistance then
@@ -1751,6 +1418,7 @@ local function ESP_Start()
 							if b then b:Destroy() end
 						end
 					else
+						-- fora da tela: oculta line
 						if ESP_Tracers[p.Name] then
 							ESP_Tracers[p.Name].Visible = false
 						end
@@ -1775,19 +1443,29 @@ spHit.MouseButton1Click:Connect(function()
 		ToggleOn(spBG, spKnob)
 		TweenService:Create(spStroke, FastTween, {Color = Color3.fromRGB(251, 191, 36)}):Play()
 		spSub.Text = "ON"; spSub.TextColor3 = Colors.Success
-		TweenService:Create(spCard, SlowTween, {Size = UDim2.new(1, 0, 0, ESP_CARD_EXPANDED)}):Play()
+		-- Expande o card para mostrar checkboxes
+		TweenService:Create(spCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, ESP_CARD_EXPANDED)
+		}):Play()
 		ESP_Start()
 	else
 		ToggleOff(spBG, spKnob)
 		TweenService:Create(spStroke, FastTween, {Color = Colors.Border}):Play()
 		spSub.Text = "OFF"; spSub.TextColor3 = Colors.TextSecondary
-		TweenService:Create(spCard, SlowTween, {Size = UDim2.new(1, 0, 0, ESP_CARD_COLLAPSED)}):Play()
+		-- Colapsa o card ocultando checkboxes
+		TweenService:Create(spCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, ESP_CARD_COLLAPSED)
+		}):Play()
 		ESP_Stop()
 	end
 end)
 
 -- =============================================
---   TELEPORT KILL V2
+--   TELEPORT KILL V2 - MELHORADO
+--   - Slider de distância (0 a 10 studs)
+--   - Posicionamento INSTANTÂNEO nas costas do enemy
+--   - Rotação sincronizada com o enemy sem delay
+--   - Offset baseado no LookVector do enemy (sempre nas costas)
 -- =============================================
 local TK_Settings = {
 	FOV           = 150,
@@ -1795,6 +1473,7 @@ local TK_Settings = {
 	TargetPart    = "Head",
 	TeamCheck     = true,
 	StickToTarget = false,
+	-- StickOffset removido: agora calculado dinamicamente pelo slider
 }
 
 local TK_ScreenGui     = nil
@@ -1809,9 +1488,7 @@ local function TK_GetClosestEnemy()
 	for _, p in pairs(Players:GetPlayers()) do
 		if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
 			local enemyTeam = p:GetAttribute("TeamID")
-			local isEnemy = not TK_Settings.TeamCheck
-				or (myTeam == nil or myTeam == "")
-				or (enemyTeam ~= myTeam)
+			local isEnemy = not TK_Settings.TeamCheck or (myTeam == nil or myTeam == "") or (enemyTeam ~= myTeam)
 			local hum = p.Character:FindFirstChild("Humanoid")
 			if isEnemy and hum and hum.Health > 0 then
 				local dist = (p.Character.HumanoidRootPart.Position - myHRP.Position).Magnitude
@@ -1829,24 +1506,29 @@ local function TK_Start()
 	TK_Settings.StickToTarget = true
 
 	TK_ScreenGui = Instance.new("ScreenGui")
-	TK_ScreenGui.Name         = "Aimbot_Pro_V6"
+	TK_ScreenGui.Name = "Aimbot_Pro_V6"
 	TK_ScreenGui.ResetOnSpawn = false
 	TK_ScreenGui.DisplayOrder = 999999997
-	TK_ScreenGui.Parent       = PlayerGui
+	TK_ScreenGui.Parent = PlayerGui
 
 	local fovFrame = Instance.new("Frame", TK_ScreenGui)
-	fovFrame.Name                 = "FOVFrame"
-	fovFrame.Size                 = UDim2.new(0, TK_Settings.FOV * 2, 0, TK_Settings.FOV * 2)
-	fovFrame.AnchorPoint          = Vector2.new(0.5, 0.5)
-	fovFrame.Position             = UDim2.new(0.5, 0, 0.5, 0)
+	fovFrame.Name = "FOVFrame"
+	fovFrame.Size = UDim2.new(0, TK_Settings.FOV * 2, 0, TK_Settings.FOV * 2)
+	fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+	fovFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 	fovFrame.BackgroundTransparency = 1
-	fovFrame.ZIndex               = 10
+	fovFrame.ZIndex = 10
 	local uiStroke = Instance.new("UIStroke", fovFrame)
-	uiStroke.Name      = "FOVStroke"
-	uiStroke.Color     = Color3.fromRGB(255, 0, 0)
+	uiStroke.Name = "FOVStroke"
+	uiStroke.Color = Color3.fromRGB(255, 0, 0)
 	uiStroke.Thickness = 2
 	Instance.new("UICorner", fovFrame).CornerRadius = UDim.new(1, 0)
 
+	-- =============================================
+	--  HEARTBEAT: posicionamento instantâneo
+	--  nas costas do enemy usando LookVector
+	--  Distância lida do slider em tempo real
+	-- =============================================
 	TK_HeartbeatConn = RunService.Heartbeat:Connect(function()
 		if not TK_Settings.StickToTarget then return end
 
@@ -1860,26 +1542,32 @@ local function TK_Start()
 		local enemyHRP = targetChar:FindFirstChild("HumanoidRootPart")
 		if not enemyHRP then return end
 
-		local dist         = TK_DistanceSlider.GetValue()
-		local enemyCF      = enemyHRP.CFrame
-		local behindOffset = enemyCF.LookVector * (-dist)
-		local targetPos    = enemyHRP.Position + behindOffset
+		-- Lê distância do slider em tempo real (0 = mesma posição, 10 = 10 studs atrás)
+		local dist = TK_DistanceSlider.GetValue()
 
-		local newCFrame = CFrame.new(targetPos)
-			* CFrame.Angles(0, math.atan2(-enemyCF.LookVector.X, -enemyCF.LookVector.Z), 0)
+		-- Calcula posição exatamente nas costas do enemy:
+		-- LookVector aponta para frente do enemy, então atrás = LookVector negativo
+		-- Mantém a altura (Y) do enemy para não flutuar
+		local enemyCF     = enemyHRP.CFrame
+		local behindOffset = enemyCF.LookVector * (-dist)  -- negativo = atrás
+		local targetPos   = enemyHRP.Position + behindOffset
 
-		myHRP.CFrame      = newCFrame
-		myHRP.Velocity    = Vector3.new(0, 0, 0)
-		myHRP.RotVelocity = Vector3.new(0, 0, 0)
+		-- Rotação do meu player igual ao enemy (sem delay, instantâneo)
+		-- Desta forma meu player olha na mesma direção do enemy (costas dele)
+		local newCFrame = CFrame.new(targetPos) * CFrame.Angles(0, math.atan2(-enemyCF.LookVector.X, -enemyCF.LookVector.Z), 0)
 
+		-- Aplica posição e rotação instantaneamente (sem Lerp para zero delay)
+		myHRP.CFrame       = newCFrame
+		myHRP.Velocity     = Vector3.new(0, 0, 0)
+		myHRP.RotVelocity  = Vector3.new(0, 0, 0)
+
+		-- Desativa colisão
 		for _, part in pairs(myChar:GetDescendants()) do
 			if part:IsA("BasePart") then part.CanCollide = false end
 		end
 	end)
 
 	RunService:BindToRenderStep("TKAimbotUpdate", Enum.RenderPriority.Camera.Value + 1, function()
-		local cam = workspace.CurrentCamera
-		if not cam then return end
 		local targetChar = TK_GetClosestEnemy()
 		local stroke = TK_ScreenGui
 			and TK_ScreenGui:FindFirstChild("FOVFrame")
@@ -1888,14 +1576,11 @@ local function TK_Start()
 		if targetChar then
 			local targetPart = targetChar:FindFirstChild(TK_Settings.TargetPart)
 			if targetPart then
-				local pos, onScreen = cam:WorldToViewportPoint(targetPart.Position)
-				local mouseDist = (
-					Vector2.new(pos.X, pos.Y)
-					- Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
-				).Magnitude
+				local pos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(targetPart.Position)
+				local mouseDist = (Vector2.new(pos.X, pos.Y) - Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, workspace.CurrentCamera.ViewportSize.Y/2)).Magnitude
 				if (onScreen and mouseDist < TK_Settings.FOV) or TK_Settings.StickToTarget then
-					local lookCF = CFrame.new(cam.CFrame.Position, targetPart.Position)
-					cam.CFrame   = cam.CFrame:Lerp(lookCF, TK_Settings.Smoothness)
+					local lookCF = CFrame.new(workspace.CurrentCamera.CFrame.Position, targetPart.Position)
+					workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(lookCF, TK_Settings.Smoothness)
 					if stroke then stroke.Color = Color3.fromRGB(255, 0, 0) end
 				else
 					if stroke then stroke.Color = Color3.fromRGB(255, 255, 255) end
@@ -1906,7 +1591,10 @@ local function TK_Start()
 end
 
 local function TK_Stop()
-	if TK_HeartbeatConn then TK_HeartbeatConn:Disconnect(); TK_HeartbeatConn = nil end
+	if TK_HeartbeatConn then
+		TK_HeartbeatConn:Disconnect()
+		TK_HeartbeatConn = nil
+	end
 	pcall(function() RunService:UnbindFromRenderStep("TKAimbotUpdate") end)
 	if Player.Character then
 		for _, part in pairs(Player.Character:GetDescendants()) do
@@ -1914,7 +1602,10 @@ local function TK_Stop()
 		end
 	end
 	TK_Settings.StickToTarget = false
-	if TK_ScreenGui then pcall(function() TK_ScreenGui:Destroy() end); TK_ScreenGui = nil end
+	if TK_ScreenGui then
+		TK_ScreenGui:Destroy()
+		TK_ScreenGui = nil
+	end
 end
 
 tkHit.MouseButton1Click:Connect(function()
@@ -1923,13 +1614,19 @@ tkHit.MouseButton1Click:Connect(function()
 		ToggleOn(tkBG, tkKnob)
 		TweenService:Create(tkStroke, FastTween, {Color = Color3.fromRGB(167, 139, 250)}):Play()
 		tkSub.Text = "ON"; tkSub.TextColor3 = Colors.Success
-		TweenService:Create(tkCard, SlowTween, {Size = UDim2.new(1, 0, 0, TK_CARD_EXPANDED)}):Play()
+		-- Expande o card para mostrar o slider de distância
+		TweenService:Create(tkCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, TK_CARD_EXPANDED)
+		}):Play()
 		TK_Start()
 	else
 		ToggleOff(tkBG, tkKnob)
 		TweenService:Create(tkStroke, FastTween, {Color = Colors.Border}):Play()
 		tkSub.Text = "OFF"; tkSub.TextColor3 = Colors.TextSecondary
-		TweenService:Create(tkCard, SlowTween, {Size = UDim2.new(1, 0, 0, TK_CARD_COLLAPSED)}):Play()
+		-- Colapsa o card
+		TweenService:Create(tkCard, SlowTween, {
+			Size = UDim2.new(1, 0, 0, TK_CARD_COLLAPSED)
+		}):Play()
 		TK_Stop()
 	end
 end)
@@ -1937,7 +1634,9 @@ end)
 -- =============================================
 --   PLAYER PAGE - SPEED / INF JUMP / NO CLIP
 -- =============================================
-local Speed_Multiplicador = 0.3
+
+-- ----- SPEED -----
+local Speed_Multiplicador = 0.8
 local Speed_Connection    = nil
 
 local function Speed_Start()
@@ -1952,7 +1651,10 @@ local function Speed_Start()
 end
 
 local function Speed_Stop()
-	if Speed_Connection then Speed_Connection:Disconnect(); Speed_Connection = nil end
+	if Speed_Connection then
+		Speed_Connection:Disconnect()
+		Speed_Connection = nil
+	end
 end
 
 spdHit.MouseButton1Click:Connect(function()
@@ -1970,6 +1672,7 @@ spdHit.MouseButton1Click:Connect(function()
 	end
 end)
 
+-- ----- INF JUMP -----
 local InfJump_Connection = nil
 
 local function InfJump_Start()
@@ -1983,7 +1686,10 @@ local function InfJump_Start()
 end
 
 local function InfJump_Stop()
-	if InfJump_Connection then InfJump_Connection:Disconnect(); InfJump_Connection = nil end
+	if InfJump_Connection then
+		InfJump_Connection:Disconnect()
+		InfJump_Connection = nil
+	end
 end
 
 ijHit.MouseButton1Click:Connect(function()
@@ -2001,6 +1707,7 @@ ijHit.MouseButton1Click:Connect(function()
 	end
 end)
 
+-- ----- NO CLIP -----
 local NoClip_Connection = nil
 
 local function NoClip_Start()
@@ -2008,18 +1715,25 @@ local function NoClip_Start()
 		local char = Player.Character
 		if char then
 			for _, part in pairs(char:GetDescendants()) do
-				if part:IsA("BasePart") then part.CanCollide = false end
+				if part:IsA("BasePart") then
+					part.CanCollide = false
+				end
 			end
 		end
 	end)
 end
 
 local function NoClip_Stop()
-	if NoClip_Connection then NoClip_Connection:Disconnect(); NoClip_Connection = nil end
+	if NoClip_Connection then
+		NoClip_Connection:Disconnect()
+		NoClip_Connection = nil
+	end
 	local char = Player.Character
 	if char then
 		for _, part in pairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then part.CanCollide = true end
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+			end
 		end
 	end
 end
@@ -2043,54 +1757,46 @@ end)
 --   BAR MINIMIZADA
 -- =====================
 local MiniBar = Instance.new("Frame")
-MiniBar.Name             = "MiniBar"
-MiniBar.Size             = UDim2.new(0, 180, 0, 42)
-MiniBar.Position         = UDim2.new(-1, -200, 0.5, -21)
+MiniBar.Name = "MiniBar"
+MiniBar.Size = UDim2.new(0, 180, 0, 42)
+MiniBar.Position = UDim2.new(-1, -200, 0.5, -21)
 MiniBar.BackgroundColor3 = Colors.TitleBar
-MiniBar.BorderSizePixel  = 0
-MiniBar.Visible          = false
-MiniBar.ZIndex           = 10
-MiniBar.Parent           = ScreenGui
+MiniBar.BorderSizePixel = 0
+MiniBar.Visible = false
+MiniBar.ZIndex = 10
+MiniBar.Parent = ScreenGui
 
 Instance.new("UICorner", MiniBar).CornerRadius = UDim.new(0, 21)
 local MiniBarStroke = Instance.new("UIStroke")
-MiniBarStroke.Color     = Colors.Border
+MiniBarStroke.Color = Colors.Border
 MiniBarStroke.Thickness = 1.5
-MiniBarStroke.Parent    = MiniBar
+MiniBarStroke.Parent = MiniBar
 
 local MiniLabel = Instance.new("TextLabel")
-MiniLabel.Size                 = UDim2.new(1, -50, 1, 0)
-MiniLabel.Position             = UDim2.new(0, 16, 0, 0)
+MiniLabel.Size = UDim2.new(1, -50, 1, 0)
+MiniLabel.Position = UDim2.new(0, 16, 0, 0)
 MiniLabel.BackgroundTransparency = 1
-MiniLabel.Text                 = "Anxiie Scripts"
-MiniLabel.TextColor3           = Colors.TextPrimary
-MiniLabel.TextSize             = 13
-MiniLabel.Font                 = Enum.Font.GothamBold
-MiniLabel.TextXAlignment       = Enum.TextXAlignment.Left
-MiniLabel.ZIndex               = 11
-MiniLabel.Parent               = MiniBar
+MiniLabel.Text = "⚡ Anxiie Scripts"
+MiniLabel.TextColor3 = Colors.TextPrimary
+MiniLabel.TextSize = 13
+MiniLabel.Font = Enum.Font.GothamBold
+MiniLabel.TextXAlignment = Enum.TextXAlignment.Left
+MiniLabel.ZIndex = 11
+MiniLabel.Parent = MiniBar
 
--- Botão "+" de maximizar
 local MaxBtn = Instance.new("TextButton")
-MaxBtn.Size             = UDim2.new(0, 30, 0, 30)
-MaxBtn.Position         = UDim2.new(1, -38, 0.5, -15)
+MaxBtn.Size = UDim2.new(0, 30, 0, 30)
+MaxBtn.Position = UDim2.new(1, -38, 0.5, -15)
 MaxBtn.BackgroundColor3 = Colors.Surface
-MaxBtn.BorderSizePixel  = 0
-MaxBtn.Text             = "+"
-MaxBtn.TextColor3       = Colors.TextPrimary
-MaxBtn.TextSize         = 20
-MaxBtn.Font             = Enum.Font.GothamBold
-MaxBtn.AutoButtonColor  = false
-MaxBtn.ZIndex           = 12
-MaxBtn.Parent           = MiniBar
+MaxBtn.BorderSizePixel = 0
+MaxBtn.Text = "⤢"
+MaxBtn.TextColor3 = Colors.TextPrimary
+MaxBtn.TextSize = 14
+MaxBtn.Font = Enum.Font.GothamBold
+MaxBtn.AutoButtonColor = false
+MaxBtn.ZIndex = 12
+MaxBtn.Parent = MiniBar
 Instance.new("UICorner", MaxBtn).CornerRadius = UDim.new(0, 8)
-
-MaxBtn.MouseEnter:Connect(function()
-	TweenService:Create(MaxBtn, FastTween, {BackgroundColor3 = Colors.SurfaceHover}):Play()
-end)
-MaxBtn.MouseLeave:Connect(function()
-	TweenService:Create(MaxBtn, FastTween, {BackgroundColor3 = Colors.Surface}):Play()
-end)
 
 -- =====================
 --   DRAG
@@ -2100,13 +1806,11 @@ local function MakeDraggable(frame, handle)
 	handle.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1
 			or input.UserInputType == Enum.UserInputType.Touch then
-			dragging  = true
+			dragging = true
 			dragStart = input.Position
-			startPos  = frame.Position
+			startPos = frame.Position
 			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then
-					dragging = false
-				end
+				if input.UserInputState == Enum.UserInputState.End then dragging = false end
 			end)
 		end
 	end)
@@ -2131,25 +1835,24 @@ MakeDraggable(MainFrame, TitleBar)
 MakeDraggable(MiniBar, MiniBar)
 
 -- =====================
---   POSIÇÕES
+--   POSIÇÕES (lado esquerdo da tela)
 -- =====================
 local POS_CENTER     = UDim2.new(0, 16, 0.5, -GUI_H/2)
 local POS_OFFSCREEN  = UDim2.new(-1, -GUI_W, 0.5, -GUI_H/2)
 local MINI_CENTER    = UDim2.new(0, 16, 0.5, -21)
 local MINI_OFFSCREEN = UDim2.new(-1, -200, 0.5, -21)
 
--- =============================================
+-- =====================
 --   MINIMIZAR / MAXIMIZAR
--- =============================================
+-- =====================
 local function Minimize()
 	IsMinimized = true
-	pcall(Snow_Stop)
-	pcall(DarkMap_Stop)
+	local currentPos = MainFrame.Position
 	TweenService:Create(MainFrame, SlowTween, {Position = POS_OFFSCREEN}):Play()
 	task.delay(0.35, function()
 		MainFrame.Visible = false
-		MiniBar.Position  = MINI_OFFSCREEN
-		MiniBar.Visible   = true
+		MiniBar.Position = MINI_OFFSCREEN
+		MiniBar.Visible = true
 		TweenService:Create(MiniBar, SlowTween, {Position = MINI_CENTER}):Play()
 	end)
 end
@@ -2158,12 +1861,10 @@ local function Maximize()
 	IsMinimized = false
 	TweenService:Create(MiniBar, SlowTween, {Position = MINI_OFFSCREEN}):Play()
 	task.delay(0.25, function()
-		MiniBar.Visible    = false
+		MiniBar.Visible = false
 		MainFrame.Position = POS_OFFSCREEN
-		MainFrame.Visible  = true
+		MainFrame.Visible = true
 		TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
-		pcall(Snow_Start)
-		pcall(DarkMap_Start)
 	end)
 end
 
@@ -2175,83 +1876,92 @@ MaxBtn.MouseButton1Click:Connect(Maximize)
 -- =====================
 TweenService:Create(MainFrame, SlowTween, {Position = POS_CENTER}):Play()
 
--- =============================================
---   ATIVA FX AO INICIAR
--- =============================================
-task.spawn(function()
-	task.wait(0.2)
-	pcall(Crosshair_Start)
-	pcall(DarkMap_Start)
-	pcall(Snow_Start)
-end)
-
-print("[Anxiee Scripts] v1.9 | Carregamento robusto | RGB Crosshair | Neve Azul Neon")
+print("[Anxiee Scripts] Carregado com sucesso! | Aimbot V7 + Slider | ESP | Teleport Kill V2 + Slider Distância | Player | GUI Responsiva + Scroll")
 
 -- =============================================
 --   PERSISTÊNCIA DE TELEPORTE
+--   Mantém o script funcionando ao trocar
+--   de sub-place dentro do mesmo jogo (GameId)
 -- =============================================
+--
+--  Como funciona:
+--  1. O script detecta quando o Roblox vai
+--     teleportar o player para um sub-place.
+--  2. Usa queue_on_teleport (Synapse X, KRNL,
+--     Fluxus, etc.) para re-executar o script
+--     automaticamente após o teleporte.
+--  3. O script deve ser salvo como:
+--       "AnxieeScripts.lua"
+--     na pasta workspace do seu executor.
+--     Assim ele é relido e re-executado após
+--     cada teleporte sem intervenção manual.
+--  4. Se o executor não suportar essas funções,
+--     uma notificação pede para re-executar.
+-- =============================================
+
 local PERSIST_FILENAME = "AnxieeScripts.lua"
 
 local function ShowRerunNotification()
+	-- Pequena notificação pedindo re-execução manual
 	task.spawn(function()
-		task.wait(2.5)
+		task.wait(2.5) -- aguarda o novo place carregar
 		local ok, pg = pcall(function()
 			return Players.LocalPlayer:WaitForChild("PlayerGui", 10)
 		end)
 		if not ok or not pg then return end
 
 		local sg = Instance.new("ScreenGui")
-		sg.Name           = "AnxieeRerunNotif"
-		sg.DisplayOrder   = 999999999
+		sg.Name         = "AnxieeRerunNotif"
+		sg.DisplayOrder = 999999999
 		sg.IgnoreGuiInset = true
-		sg.ResetOnSpawn   = false
-		sg.Parent         = pg
+		sg.ResetOnSpawn = false
+		sg.Parent       = pg
 
 		local f = Instance.new("Frame")
-		f.Size             = UDim2.new(0, 310, 0, 70)
-		f.AnchorPoint      = Vector2.new(0.5, 0)
-		f.Position         = UDim2.new(0.5, 0, -0.2, 0)
+		f.Size        = UDim2.new(0, 310, 0, 70)
+		f.AnchorPoint = Vector2.new(0.5, 0)
+		f.Position    = UDim2.new(0.5, 0, -0.2, 0)
 		f.BackgroundColor3 = Color3.fromRGB(18, 18, 26)
 		f.BorderSizePixel  = 0
-		f.Parent           = sg
+		f.Parent = sg
 		Instance.new("UICorner", f).CornerRadius = UDim.new(0, 14)
 		local fs = Instance.new("UIStroke")
-		fs.Color     = Color3.fromRGB(99, 102, 241)
+		fs.Color = Color3.fromRGB(99, 102, 241)
 		fs.Thickness = 1.5
-		fs.Parent    = f
+		fs.Parent = f
 
 		local icon = Instance.new("TextLabel")
-		icon.Size             = UDim2.new(0, 36, 0, 36)
-		icon.Position         = UDim2.new(0, 10, 0.5, -18)
+		icon.Size = UDim2.new(0, 36, 0, 36)
+		icon.Position = UDim2.new(0, 10, 0.5, -18)
 		icon.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
-		icon.Text             = "⚡"
-		icon.TextSize         = 18
-		icon.Font             = Enum.Font.GothamBold
-		icon.BorderSizePixel  = 0
-		icon.Parent           = f
+		icon.Text     = "⚡"
+		icon.TextSize = 18
+		icon.Font     = Enum.Font.GothamBold
+		icon.BorderSizePixel = 0
+		icon.Parent = f
 		Instance.new("UICorner", icon).CornerRadius = UDim.new(0, 8)
 
 		local lbl = Instance.new("TextLabel")
-		lbl.Size             = UDim2.new(1, -62, 0, 24)
-		lbl.Position         = UDim2.new(0, 54, 0, 10)
+		lbl.Size = UDim2.new(1, -62, 0, 24)
+		lbl.Position = UDim2.new(0, 54, 0, 10)
 		lbl.BackgroundTransparency = 1
-		lbl.Text             = "Anxiee Scripts"
-		lbl.TextColor3       = Color3.fromRGB(240, 240, 255)
-		lbl.TextSize         = 13
-		lbl.Font             = Enum.Font.GothamBold
-		lbl.TextXAlignment   = Enum.TextXAlignment.Left
-		lbl.Parent           = f
+		lbl.Text = "Anxiee Scripts"
+		lbl.TextColor3 = Color3.fromRGB(240, 240, 255)
+		lbl.TextSize   = 13
+		lbl.Font       = Enum.Font.GothamBold
+		lbl.TextXAlignment = Enum.TextXAlignment.Left
+		lbl.Parent = f
 
 		local sub = Instance.new("TextLabel")
-		sub.Size             = UDim2.new(1, -62, 0, 20)
-		sub.Position         = UDim2.new(0, 54, 0, 36)
+		sub.Size = UDim2.new(1, -62, 0, 20)
+		sub.Position = UDim2.new(0, 54, 0, 36)
 		sub.BackgroundTransparency = 1
-		sub.Text             = "Please re-run the script in this place."
-		sub.TextColor3       = Color3.fromRGB(140, 140, 200)
-		sub.TextSize         = 11
-		sub.Font             = Enum.Font.Gotham
-		sub.TextXAlignment   = Enum.TextXAlignment.Left
-		sub.Parent           = f
+		sub.Text = "Please re-run the script in this place."
+		sub.TextColor3 = Color3.fromRGB(140, 140, 200)
+		sub.TextSize   = 11
+		sub.Font       = Enum.Font.Gotham
+		sub.TextXAlignment = Enum.TextXAlignment.Left
+		sub.Parent = f
 
 		local ts = game:GetService("TweenService")
 		ts:Create(f, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
@@ -2268,19 +1978,25 @@ local function ShowRerunNotification()
 end
 
 Players.LocalPlayer.OnTeleport:Connect(function(teleportState)
+	-- Detecta início de teleporte para sub-place
 	if teleportState == Enum.TeleportState.RequestedFromServer
 		or teleportState == Enum.TeleportState.InProgress then
 
 		task.spawn(function()
+			-- Verifica se queue_on_teleport está disponível (Synapse X, KRNL, Fluxus, etc.)
 			if typeof(queue_on_teleport) == "function" then
+				-- Tenta ler o script salvo no workspace do executor
 				local ok, src = pcall(function()
 					return readfile(PERSIST_FILENAME)
 				end)
 
 				if ok and src and #src > 500 then
+					-- Re-executa o script salvo após o teleporte
 					queue_on_teleport(src)
 				else
+					-- Arquivo não encontrado: tenta salvar agora para uso futuro
 					pcall(function()
+						-- Notificação mínima via queue para avisar sobre re-execução
 						queue_on_teleport([[
 task.wait(2.5)
 local ts = game:GetService("TweenService")
@@ -2299,41 +2015,65 @@ task.delay(6,function() ts:Create(f,TweenInfo.new(0.4,Enum.EasingStyle.Quart,Enu
 					end)
 				end
 			else
+				-- Executor não suporta queue_on_teleport
+				-- Exibe notificação no novo place pedindo re-execução
 				ShowRerunNotification()
 			end
 		end)
 	end
 end)
 
+-- Dica: salve este script como "AnxieeScripts.lua" na pasta workspace
+-- do seu executor para que o queue_on_teleport funcione automaticamente.
+
 -- =============================================
---   RECONEXÃO APÓS RESPAWN
+--   RECONEXÃO APÓS RESPAWN / TROCA DE MAPA
+--   Reinicializa todas as features ativas
+--   quando o personagem renasce (spawn novo mapa)
 -- =============================================
 Player.CharacterAdded:Connect(function()
+	-- Aguarda o personagem e HumanoidRootPart carregarem
 	task.wait(1.5)
 
-	pcall(Crosshair_Stop); task.wait(0.05); pcall(Crosshair_Start)
-
-	if not IsMinimized then
-		pcall(DarkMap_Stop); task.wait(0.05); pcall(DarkMap_Start)
-		pcall(Snow_Stop);    task.wait(0.05); pcall(Snow_Start)
-	end
-
+	-- Aimbot: reinicia se estava ativo
 	if AimbotEnabled then
-		pcall(Aimbot_Stop); task.wait(0.1); pcall(Aimbot_Start)
+		pcall(Aimbot_Stop)
+		task.wait(0.1)
+		pcall(Aimbot_Start)
 	end
+
+	-- ESP: reinicia conexão se estava ativo
 	if ESPEnabled then
-		pcall(ESP_Stop); task.wait(0.1); pcall(ESP_Start)
+		pcall(ESP_Stop)
+		task.wait(0.1)
+		pcall(ESP_Start)
 	end
+
+	-- Speed: reconecta heartbeat se estava ativo
 	if SpeedEnabled then
-		pcall(Speed_Stop); task.wait(0.1); pcall(Speed_Start)
+		pcall(Speed_Stop)
+		task.wait(0.1)
+		pcall(Speed_Start)
 	end
+
+	-- Inf Jump: reconecta JumpRequest se estava ativo
 	if InfJumpEnabled then
-		pcall(InfJump_Stop); task.wait(0.1); pcall(InfJump_Start)
+		pcall(InfJump_Stop)
+		task.wait(0.1)
+		pcall(InfJump_Start)
 	end
+
+	-- No Clip: reconecta Stepped se estava ativo
 	if NoClipEnabled then
-		pcall(NoClip_Stop); task.wait(0.1); pcall(NoClip_Start)
-	end
+		pcall(NoClip_Stop)
+		task.wait(0.1)
+		pcall(NoClip_Start)
+	end                 
+
+	-- Teleport Kill: reinicia se estava ativo
 	if TeleportKillEnabled then
-		pcall(TK_Stop); task.wait(0.1); pcall(TK_Start)
+		pcall(TK_Stop)
+		task.wait(0.1)
+		pcall(TK_Start)
 	end
 end)
